@@ -22,7 +22,7 @@ def read_data(json_file):
         return json.load(read_file)
 
 
-if __name__ == '__main__':
+def main():
     parser = create_parser()
     namespace = parser.parse_args()
 
@@ -32,3 +32,7 @@ if __name__ == '__main__':
         classification.visual(data, namespace.directory)
     if namespace.temp == '1':
         detection.visual(data, namespace.directory)
+
+
+if __name__ == '__main__':
+    main()
