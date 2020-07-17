@@ -85,6 +85,7 @@ class Classification(MetricAnalysis):
 
     def simple_metric(self):
         from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+        
         print(accuracy_score(self.prediction_label, self.annotation_label))
         print(recall_score(self.prediction_label, self.annotation_label, average='macro'))
         print(precision_score(self.prediction_label, self.annotation_label, average='macro'))
