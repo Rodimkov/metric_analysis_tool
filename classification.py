@@ -134,10 +134,32 @@ class Classification(MetricAnalysis):
         ax.set_ylabel("annotation label")
         plt.show()
 
+    def test(self):
+        # Precision и recall также используют для построения кривой и, аналогично AUC-ROC
+        from sklearn.metrics import roc_curve, auc
+        import seaborn as sns
+        sns.set(font_scale=1.5)
+        sns.set_color_codes("muted")
+
+        plt.figure(figsize=(10, 8))
+        #print(np.max(self.prediction_scores, axis=1))
+        fpr, tpr, thresholds = roc_curve(self.annotation_label, np.max(self.prediction_scores, axis=1), pos_label=1)
+        lw = 2
+        plt.plot(fpr, tpr, lw=lw, label='ROC curve ')
+        plt.plot([0, 1], [0, 1])
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('ROC curve')
+        plt.savefig("ROC.png")
+        plt.show()
+
     def metrics(self):
         self.simple_metric()
         self.plot_accuracy_changes()
         self.plot_confusion_matrix()
+        self.test()
 
     def visualize_data(self):
 
