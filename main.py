@@ -3,14 +3,17 @@ import os
 import task_factory
 
 
+
 def create_parser():
     argument_parser = argparse.ArgumentParser()
 
     argument_parser.add_argument('-t', '--temp', required=True,
                                  help="temporary solution")
+
     argument_parser.add_argument('-f', '--file', nargs='+', type=file_path,
                                  help="results description file")
     argument_parser.add_argument('-d', '--directory', required=True, type=dir_path,
+
                                  help="directory containing data")
 
     return argument_parser
@@ -34,6 +37,7 @@ def dir_path(path):
         raise argparse.ArgumentTypeError("{} is not a valid path".format(path))
 
 
+
 def main():
     parser = create_parser()
     namespace = parser.parse_args()
@@ -50,3 +54,14 @@ def main():
 
 if __name__ == '__main__':
     main()
+    data = read_data(namespace.file[0])
+
+    if namespace.temp == '0':
+        classification.visual(data, namespace.directory)
+    if namespace.temp == '1':
+        detection.visual(data, namespace.directory)
+
+
+if __name__ == '__main__':
+    main()
+

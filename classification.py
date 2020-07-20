@@ -1,5 +1,3 @@
-import cv2
-import numpy as np
 import json
 import matplotlib.pyplot as plt
 from metric_analysis import MetricAnalysis
