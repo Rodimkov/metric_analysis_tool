@@ -1,23 +1,14 @@
 import cv2
 import numpy as np
-import json
 import matplotlib.pyplot as plt
+import pandas as pd
 from metric_analysis import MetricAnalysis
 
 
 class Classification(MetricAnalysis):
 
-    def __init__(self, file_json, directory):
-        self.file = file_json
-        self.picture_directory = directory
-
-        self.data = self.read_data()
-
-        self.task_info = None
-        self.dataset_meta = None
-        self.reports = None
-
-        self.label_map = None
+    def __init__(self, data, directory, mask):
+        super(Classification, self).__init__(data, directory, mask)
 
         self.identifier = []
         self.prediction_label = []
@@ -28,31 +19,9 @@ class Classification(MetricAnalysis):
         self.validate()
         self.parser()
 
-    def read_data(self):
-        try:
-            with open(self.file, "r") as read_file:
-                return json.load(read_file)
-
-        except FileNotFoundError:
-            print('file {} does not exist'.format(self.file))
-            raise SystemExit(1)
-
-        except IsADirectoryError:
-            print("file was expected but this is a directory")
-            raise SystemExit(1)
-
     def validate(self):
+        super(Classification, self).validate()
         try:
-            if not 'processing_info' in self.data:
-                raise Exception('processing_info')
-            if not 'dataset_meta' in self.data:
-                raise Exception('dataset_meta')
-            if not 'report' in self.data:
-                raise Exception('report')
-
-            if not 'label_map' in self.data.get("dataset_meta"):
-                raise Exception('label_map')
-
             if not 'identifier' in self.data.get("report")[0]:
                 raise Exception('identifier')
 
@@ -65,16 +34,15 @@ class Classification(MetricAnalysis):
             if not 'prediction_scores' in self.data.get("report")[0]:
                 raise Exception('prediction_scores')
 
+            if not 'accuracy_result' in self.data.get("report")[0]:
+                raise Exception('accuracy_result')
+
         except Exception as e:
             print("no key '{}' in file <json>".format(e))
             raise SystemExit(1)
 
     def parser(self):
-        self.task_info = self.data.get("processing_info")
-        self.dataset_meta = self.data.get("dataset_meta")
-        self.reports = self.data.get("report")
-
-        self.label_map = self.dataset_meta.get("label_map")
+        super(Classification, self).parser()
 
         for report in self.reports:
             self.identifier.append(report.get("identifier"))
@@ -84,29 +52,55 @@ class Classification(MetricAnalysis):
             self.accuracy_result.append(report.get("accuracy_result"))
 
     def simple_metric(self):
-        from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-        
-        print(accuracy_score(self.prediction_label, self.annotation_label))
-        print(recall_score(self.prediction_label, self.annotation_label, average='macro'))
-        print(precision_score(self.prediction_label, self.annotation_label, average='macro'))
-        print(f1_score(self.prediction_label, self.annotation_label, average='macro'))
+        from sklearn.metrics import classification_report
+
+        print(classification_report(self.annotation_label, self.prediction_label,
+                                    target_names=self.label_map.values()))
 
     def plot_accuracy_changes(self):
         accuracy_change = []
-        value = 0.0
+        k = 200  # k must be even
 
-        for i, accuracy in enumerate(self.accuracy_result):
-            value += accuracy
-            accuracy_change.append(value / (i + 1))
+        for i in range(int(len(self.accuracy_result) / k)):  # не обрабатываем конец
+            value = np.mean(self.accuracy_result[k * i:k * (i + 1)])
+            accuracy_change.append(value)
+        x_range = np.array(range(len(accuracy_change))) * k
 
-        fig, ax = plt.subplots(figsize=(8, 6))
+        accuracy_change = []
+        for i in range(int(k / 2), int(len(self.accuracy_result) - int(k / 2))):
+            value = np.mean(self.accuracy_result[i:(i + k)])
+            accuracy_change.append(value)
+        x_range = range(int(k / 2), len(accuracy_change) + int(k / 2))
+
+        _, ax = plt.subplots(figsize=(8, 6))
         ax.set_title("Change in accuracy in the process of predicting results")
 
         ax.set_xlabel("image number")
         ax.set_ylabel("accuracy")
 
-        ax.plot(range(len(self.reports)), accuracy_change)
+        ax.plot(x_range, accuracy_change)
         plt.show()
+
+    def top_n(self):
+        n = 10
+        accuracy_info = []
+
+        df = pd.DataFrame(self.prediction_scores)
+
+        for i in range(len(self.reports)):
+            accuracy_info.append([self.identifier[i],
+                                  -list(df.iloc[i].sort_values(ascending=False).index).index(self.annotation_label[i]),
+                                  self.prediction_scores[i][self.annotation_label[i]]])
+
+        df_top_n = pd.DataFrame(accuracy_info).sort_values(by=[1, 2])[:n]
+
+        for image_name in df_top_n[0]:
+            image = cv2.imread(self.picture_directory + image_name)
+            cv2.imshow(image_name, image)
+            key = cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            if key == 27:
+                break
 
     def plot_confusion_matrix(self):
         from sklearn.metrics import confusion_matrix
@@ -124,9 +118,12 @@ class Classification(MetricAnalysis):
             for j in range(cm.shape[0]):
                 text[i, j] = "{0:.2f}%\n{1} / {2}".format(cm_prob[i, j], cm[i, j], cm_sum[i][0])
 
-        fig, ax = plt.subplots(figsize=(8, 8))
+        _, ax = plt.subplots(figsize=(8, 8))
 
-        sns.heatmap(cm, cmap="YlGnBu", annot=text, fmt='', ax=ax)
+        df_cm = pd.DataFrame(cm, index=self.label_map.values(),
+                             columns=self.label_map.values())
+
+        sns.heatmap(df_cm, cmap="YlGnBu", annot=text, fmt='', ax=ax)
 
         ax.set_title("Confusion matrix")
 
@@ -134,39 +131,17 @@ class Classification(MetricAnalysis):
         ax.set_ylabel("annotation label")
         plt.show()
 
-    def test(self):
-        # Precision и recall также используют для построения кривой и, аналогично AUC-ROC
-        from sklearn.metrics import roc_curve, auc
-        import seaborn as sns
-        sns.set(font_scale=1.5)
-        sns.set_color_codes("muted")
-
-        plt.figure(figsize=(10, 8))
-        #print(np.max(self.prediction_scores, axis=1))
-        fpr, tpr, thresholds = roc_curve(self.annotation_label, np.max(self.prediction_scores, axis=1), pos_label=1)
-        lw = 2
-        plt.plot(fpr, tpr, lw=lw, label='ROC curve ')
-        plt.plot([0, 1], [0, 1])
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('ROC curve')
-        plt.savefig("ROC.png")
-        plt.show()
-
     def metrics(self):
         self.simple_metric()
         self.plot_accuracy_changes()
         self.plot_confusion_matrix()
-        self.test()
 
     def visualize_data(self):
 
-        for i, report in enumerate(self.reports):
+        for i in range(len(self.reports)):
 
             pred_label = self.label_map.get(str(self.prediction_label[i]))
-            true_label = self.label_map.get(str(self.prediction_label[i]))
+            true_label = self.label_map.get(str(self.annotation_label[i]))
 
             print("image name:", self.identifier[i],
                   "\nprediction label:", pred_label,
@@ -179,3 +154,11 @@ class Classification(MetricAnalysis):
             cv2.destroyAllWindows()
             if key == 27:
                 break
+
+
+""""
+TODO 
+
+два разных способо подсчета изменение метрики
+
+"""

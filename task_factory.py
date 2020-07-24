@@ -1,12 +1,14 @@
 import classification
 import detection
+import segmentation
 
 
 class MetricAnalysisFactory:
     @staticmethod
-    def create_task(name, file_json, directory):
+    def create_task(name, data, directory, mask):
         type_task = {
-            "Classification": classification.Classification,
-            "Detection": detection.Detection
+            "classification": classification.Classification,
+            "detection": detection.Detection,
+            "segmentation": segmentation.Segmentation
         }
-        return type_task[name](file_json, directory)
+        return type_task[name](data, directory, mask)
