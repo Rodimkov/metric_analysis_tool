@@ -7,12 +7,14 @@ import json
 # This file is a temporary solution and contains inaccuracies.
 # As a result, it is not written optimally
 
+
 def create_parser():
     argument_parser = argparse.ArgumentParser()
 
     argument_parser.add_argument('-f', '--file', nargs='+', type=file_path,
                                  help="results description file")
     argument_parser.add_argument('-d', '--directory', required=True, type=dir_path,
+
                                  help="directory containing data")
     argument_parser.add_argument('-m', '--mask',
                                  help="directory containing data")
@@ -52,6 +54,19 @@ def read_data(json_file):
     type_task = data.get("report_type")
 
     return data, type_task
+
+
+def main():
+    parser = create_parser()
+    namespace = parser.parse_args()
+
+    data, type_task = read_data(namespace.file[0])
+
+    task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.directory, namespace.mask)
+
+    task.visualize_data()
+    task.metrics()
+    task.top_n()
 
 
 def main():
