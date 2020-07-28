@@ -16,12 +16,6 @@ class MetricAnalysis(ABC):
         self.report_type = None
         self.label_map = None
 
-
-        #а почему не вызвается здесь в инициализации парсинг и валидация
-        #self.validate()
-        #self.parser()
-
-
     def parser(self):
         self.task_info = self.data.get("processing_info")
         self.dataset_meta = self.data.get("dataset_meta")
