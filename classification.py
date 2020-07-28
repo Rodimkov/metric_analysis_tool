@@ -51,36 +51,6 @@ class Classification(MetricAnalysis):
             self.prediction_scores.append(report.get("prediction_scores"))
             self.accuracy_result.append(report.get("accuracy_result"))
 
-    def simple_metric(self):
-        from sklearn.metrics import classification_report
-
-        print(classification_report(self.annotation_label, self.prediction_label,
-                                    target_names=self.label_map.values()))
-
-    def plot_accuracy_changes(self):
-        accuracy_change = []
-        k = 200  # k must be even
-
-        for i in range(int(len(self.accuracy_result) / k)):  # не обрабатываем конец
-            value = np.mean(self.accuracy_result[k * i:k * (i + 1)])
-            accuracy_change.append(value)
-        x_range = np.array(range(len(accuracy_change))) * k
-
-        accuracy_change = []
-        for i in range(int(k / 2), int(len(self.accuracy_result) - int(k / 2))):
-            value = np.mean(self.accuracy_result[i:(i + k)])
-            accuracy_change.append(value)
-        x_range = range(int(k / 2), len(accuracy_change) + int(k / 2))
-
-        _, ax = plt.subplots(figsize=(8, 6))
-        ax.set_title("Change in accuracy in the process of predicting results")
-
-        ax.set_xlabel("image number")
-        ax.set_ylabel("accuracy")
-
-        ax.plot(x_range, accuracy_change)
-        plt.show()
-
     def top_n(self):
         n = 10
         accuracy_info = []
@@ -90,17 +60,46 @@ class Classification(MetricAnalysis):
         for i in range(len(self.reports)):
             accuracy_info.append([self.identifier[i],
                                   -list(df.iloc[i].sort_values(ascending=False).index).index(self.annotation_label[i]),
-                                  self.prediction_scores[i][self.annotation_label[i]]])
+                                  self.prediction_scores[i][self.annotation_label[i]],
+                                  self.label_map.get(str(self.prediction_label[i])),
+                                  self.label_map.get(str(self.annotation_label[i]))])
 
-        df_top_n = pd.DataFrame(accuracy_info).sort_values(by=[1, 2])[:n]
+        top_n = pd.DataFrame(accuracy_info).sort_values(by=[1, 2])[:n]
 
-        for image_name in df_top_n[0]:
-            image = cv2.imread(self.picture_directory + image_name)
-            cv2.imshow(image_name, image)
+        for i in range(top_n.shape[0]):
+            print("image name:", top_n.iloc[i][0],
+                  "\nprediction label:", top_n.iloc[i][3],
+                  "annotation label:", top_n.iloc[i][4])
+            image = cv2.imread(self.picture_directory + top_n.iloc[i][0])
+            cv2.imshow(top_n.iloc[i][0], image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
                 break
+
+    def simple_metric(self):
+        from sklearn.metrics import classification_report
+
+        print(classification_report(self.annotation_label, self.prediction_label,
+                                    target_names=self.label_map.values()))
+
+    def plot_accuracy_changes(self):
+        k = 100
+        accuracy_change = []
+
+        for i in range(int(k / 2), int(len(self.accuracy_result) - int(k / 2))):
+            value = np.mean(self.accuracy_result[i:(i + k)])
+            accuracy_change.append(value)
+        x_range = range(int(k / 2), len(accuracy_change) + int(k / 2))
+
+        _, ax = plt.subplots(figsize=(8, 6))
+        ax.set_title("Change accuracy in the process of predicting results")
+
+        ax.set_xlabel("image number")
+        ax.set_ylabel("accuracy")
+
+        ax.plot(x_range, accuracy_change)
+        plt.show()
 
     def plot_confusion_matrix(self):
         from sklearn.metrics import confusion_matrix
@@ -154,11 +153,3 @@ class Classification(MetricAnalysis):
             cv2.destroyAllWindows()
             if key == 27:
                 break
-
-
-""""
-TODO 
-
-два разных способо подсчета изменение метрики
-
-"""

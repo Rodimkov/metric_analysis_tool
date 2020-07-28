@@ -14,6 +14,7 @@ class Segmentation(MetricAnalysis):
         self.identifier = []
         self.confusion_matrix = []
         self.predicted_mask = []
+        self.segmentation_colors = None
 
         self.validate()
         self.parser()
@@ -27,6 +28,19 @@ class Segmentation(MetricAnalysis):
             name = os.path.basename(report.get("predicted_mask"))
             self.predicted_mask.append(name)
             self.confusion_matrix.append((report.get("confusion_matrix")))
+
+        if 'segmentation_colors' in self.dataset_meta.keys():
+            self.segmentation_colors = np.array(self.data.get("dataset_meta").get('segmentation_colors'))
+        elif len(self.label_map) > 10:
+            self.segmentation_colors = np.random.randint(180, size=(len(self.label_map), 3))
+        else:
+            self.segmentation_colors = np.ones((len(self.label_map), 3))
+            self.segmentation_colors = np.zeros((len(self.label_map), 1, 3), np.uint8)
+            for i in range(len(self.label_map)):
+                self.segmentation_colors[i] = np.array([i * int(180 / (len(self.label_map))), 255, 255])
+
+            self.segmentation_colors = cv2.cvtColor(self.segmentation_colors, cv2.COLOR_HSV2BGR)
+            self.segmentation_colors = np.resize(self.segmentation_colors, new_shape=(len(self.label_map), 3))
 
     def validate(self):
         super(Segmentation, self).validate()
@@ -57,31 +71,17 @@ class Segmentation(MetricAnalysis):
 
         df_top_n = pd.DataFrame(cm_info).sort_values(by=[2], ascending=False)[:n]
 
-        flag = bool(self.data.get("dataset_meta").get('segmentation_colors'))
-        if not flag:
-            for i in range(df_top_n.shape[0]):
-                mask = np.load(self.mask + df_top_n.iloc[i][1], allow_pickle=True)
-                image = cv2.imread(self.picture_directory + df_top_n.iloc[i][0])
+        for i in range(df_top_n.shape[0]):
+            mask = np.load(self.mask + df_top_n.iloc[i][1], allow_pickle=True)
+            image = cv2.imread(self.picture_directory + df_top_n.iloc[i][0])
 
-                image = self.plot_image(image, mask)
+            image = self.plot_image(image, mask)
 
-                cv2.imshow(df_top_n.iloc[i][1], image)
-                key = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                if key == 27:
-                    break
-        else:
-            for i in range(df_top_n.shape[0]):
-                mask = np.load(self.mask + df_top_n.iloc[i][1], allow_pickle=True)
-                image = cv2.imread(self.picture_directory + df_top_n.iloc[i][0])
-
-                image = self.plot_image_arg(image, mask)
-
-                cv2.imshow(df_top_n.iloc[i][1], image)
-                key = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                if key == 27:
-                    break
+            cv2.imshow(df_top_n.iloc[i][1], image)
+            key = cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            if key == 27:
+                break
 
     def plot_confusion_matrix(self):
         import seaborn as sns
@@ -112,85 +112,35 @@ class Segmentation(MetricAnalysis):
         self.plot_confusion_matrix()
 
     def visualize_data(self):
-        flag = bool(self.data.get("dataset_meta").get('segmentation_colors'))
 
-        if not flag:
+        for i in range(len(self.reports)):
+            mask = np.load(self.mask + self.predicted_mask[i], allow_pickle=True)
+            image = cv2.imread(self.picture_directory + self.identifier[i])
 
-            for i in range(len(self.reports)):
-                mask = np.load(self.mask + self.predicted_mask[i], allow_pickle=True)
-                image = cv2.imread(self.picture_directory + self.identifier[i])
+            image = self.plot_image(image, mask)
 
-                image = self.plot_image(image, mask)
-
-                cv2.imshow("image", image)
-                key = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                if key == 27:
-                    break
-
-        else:
-            for i in range(len(self.reports)):
-                mask = np.load(self.mask + self.predicted_mask[i], allow_pickle=True)
-                image = cv2.imread(self.picture_directory + self.identifier[i])
-
-                image = self.plot_image_arg(image, mask)
-
-                cv2.imshow("save/" + str(self.identifier[i]), image)
-                key = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                if key == 27:
-                    break
-
-    def plot_image_arg(self, image, mask):
-        image = cv2.resize(image, (mask.shape[1], mask.shape[0]))
-        segmentation_colors = np.array(self.data.get("dataset_meta").get('segmentation_colors'))
-
-        class_mask = mask.astype(np.uint8)
-
-        color_mask = cv2.cvtColor(class_mask, cv2.COLOR_GRAY2BGR)
-
-        for temp in range((segmentation_colors.shape[0])):
-            color_mask[:, :, 0] = np.where((class_mask == temp),
-                                           segmentation_colors[temp][0], color_mask[:, :, 0])
-            color_mask[:, :, 1] = np.where((class_mask == temp),
-                                           segmentation_colors[temp][1], color_mask[:, :, 1])
-            color_mask[:, :, 2] = np.where((class_mask == temp),
-                                           segmentation_colors[temp][2], color_mask[:, :, 2])
-
-        image = cv2.addWeighted(image, 1.0, color_mask, 0.7, 0)
-
-        return image
+            cv2.imshow("image", image)
+            key = cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            if key == 27:
+                break
 
     def plot_image(self, image, mask):
-        image = cv2.resize(image, (mask.shape[2], mask.shape[1]))
+        if len(mask.shape) == 3:
+            mask = np.argmax(mask, axis=0).astype(np.uint8)
+        mask = mask.astype(np.uint8)
 
-        class_mask = np.argmax(mask, axis=0).astype(np.uint8)
+        image = cv2.resize(image, (mask.shape[1], mask.shape[0]))
 
-        bg_class = np.where(class_mask == 0, 0, 1)
+        color_mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
 
-        class_mask = cv2.cvtColor(class_mask, cv2.COLOR_GRAY2BGR)
-        class_mask = cv2.cvtColor(class_mask, cv2.COLOR_BGR2HSV)
+        for temp in range((self.segmentation_colors.shape[0])):
+            color_mask[:, :, 0] = np.where((mask == temp),
+                                           self.segmentation_colors[temp][0], color_mask[:, :, 0])
+            color_mask[:, :, 1] = np.where((mask == temp),
+                                           self.segmentation_colors[temp][1], color_mask[:, :, 1])
+            color_mask[:, :, 2] = np.where((mask == temp),
+                                           self.segmentation_colors[temp][2], color_mask[:, :, 2])
 
-        class_mask[:, :, 2] = class_mask[:, :, 2] * int(180 / (mask.shape[0] - 1))
-
-        for l in range(1, mask.shape[0]):
-            r_value = np.random.randint(180)
-            class_mask[:, :, 0] = np.where(class_mask[:, :, 2] == l, r_value, class_mask[:, :, 0])
-
-        class_mask[:, :, 0] = class_mask[:, :, 2]
-        class_mask[:, :, 1] = 255
-        class_mask[:, :, 2] = 255 * bg_class
-
-        res_mask = cv2.cvtColor(class_mask, cv2.COLOR_HSV2BGR)
-
-        image = cv2.addWeighted(image, 0.95, res_mask, 0.7, 0)
-
+        image = cv2.addWeighted(image, 1.0, color_mask, 0.7, 0)
         return image
-
-
-""""
-TODO 
-
-весьма сильно ограничеваем в плане что если у нас арг то должна быть и цветовая маска
-
-"""

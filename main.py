@@ -55,20 +55,6 @@ def read_data(json_file):
 
     return data, type_task
 
-
-def main():
-    parser = create_parser()
-    namespace = parser.parse_args()
-
-    data, type_task = read_data(namespace.file[0])
-
-    task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.directory, namespace.mask)
-
-    task.visualize_data()
-    task.metrics()
-    task.top_n()
-
-
 def main():
     parser = create_parser()
     namespace = parser.parse_args()
