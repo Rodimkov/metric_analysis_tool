@@ -21,24 +21,32 @@ class Classification(MetricAnalysis):
 
     def validate(self):
         super(Classification, self).validate()
+
         try:
-            if not 'identifier' in self.data.get("report")[0]:
-                raise Exception('identifier')
+            report_error = ""
+            report_obj = self.data.get("report")[0]
 
-            if not 'prediction_label' in self.data.get("report")[0]:
-                raise Exception('prediction_label')
+            if not 'identifier' in report_obj:
+                report_error += ' identifier'
 
-            if not 'annotation_label' in self.data.get("report")[0]:
-                raise Exception('annotation_label')
+            if not 'prediction_label' in report_obj:
+                report_error += ' prediction_label'
 
-            if not 'prediction_scores' in self.data.get("report")[0]:
-                raise Exception('prediction_scores')
+            if not 'annotation_label' in report_obj:
+                report_error += ' annotation_label'
 
-            if not 'accuracy_result' in self.data.get("report")[0]:
-                raise Exception('accuracy_result')
+            if not 'prediction_scores' in report_obj:
+                report_error += ' prediction_scores'
+
+            if not 'accuracy_result' in report_obj:
+                report_error += ' accuracy_result'
+
+            if report_error:
+                report_error = report_error[1:].replace(' ', ", ")
+                raise Exception(report_error)
 
         except Exception as e:
-            print("no key '{}' in file <json>".format(e))
+            print("there are no keys in the file <json>: {}".format(e))
             raise SystemExit(1)
 
     def parser(self):
@@ -51,27 +59,24 @@ class Classification(MetricAnalysis):
             self.prediction_scores.append(report.get("prediction_scores"))
             self.accuracy_result.append(report.get("accuracy_result"))
 
-    def top_n(self):
-        n = 10
-        accuracy_info = []
-
-        df = pd.DataFrame(self.prediction_scores)
+    def top_n(self, n=10):
+        position = []
+        scores = []
 
         for i in range(len(self.reports)):
-            accuracy_info.append([self.identifier[i],
-                                  -list(df.iloc[i].sort_values(ascending=False).index).index(self.annotation_label[i]),
-                                  self.prediction_scores[i][self.annotation_label[i]],
-                                  self.label_map.get(str(self.prediction_label[i])),
-                                  self.label_map.get(str(self.annotation_label[i]))])
+            position.append(-np.where(np.argsort(self.prediction_scores[i])[::-1] == self.annotation_label[i])[0][0])
+            scores.append(self.prediction_scores[i][self.annotation_label[i]])
 
-        top_n = pd.DataFrame(accuracy_info).sort_values(by=[1, 2])[:n]
+        sort_index = np.lexsort((scores, position))[:n]
 
-        for i in range(top_n.shape[0]):
-            print("image name:", top_n.iloc[i][0],
-                  "\nprediction label:", top_n.iloc[i][3],
-                  "annotation label:", top_n.iloc[i][4])
-            image = cv2.imread(self.picture_directory + top_n.iloc[i][0])
-            cv2.imshow(top_n.iloc[i][0], image)
+        for i in sort_index:
+            pred_label = self.label_map.get(str(self.prediction_label[i]))
+            true_label = self.label_map.get(str(self.annotation_label[i]))
+            print("image name:", self.identifier[i],
+                  "\nprediction label:", pred_label,
+                  "annotation label:", true_label)
+            image = cv2.imread(self.picture_directory + self.identifier[i])
+            cv2.imshow(self.identifier[i], image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:

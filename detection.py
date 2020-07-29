@@ -2,7 +2,6 @@ import cv2
 from metric_analysis import MetricAnalysis
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 
 class Detection(MetricAnalysis):
@@ -25,32 +24,41 @@ class Detection(MetricAnalysis):
         super(Detection, self).validate()
 
         try:
-            if not 'identifier' in self.data.get("report")[0]:
-                raise Exception('identifier')
+            report_error = ""
+            report_obj = self.data.get("report")[0]
 
-            if not 'per_class_result' in self.data.get("report")[0]:
-                raise Exception('prediction_label')
+            if not 'identifier' in report_obj:
+                report_error += 'identifier'
+
+            if not 'per_class_result' in report_obj:
+                report_error += 'prediction_label'
+
+            if report_error:
+                raise Exception(report_error)
 
             key_class = list(self.data.get("report")[0].get("per_class_result").keys())[0]
 
-            if not 'prediction_boxes' in self.data.get("report")[0] \
-                    .get("per_class_result").get(key_class):
-                raise Exception('prediction_boxes')
+            class_result_error = ""
+            class_result_obj = self.data.get("report")[0].get("per_class_result").get(key_class)
 
-            if not 'annotation_boxes' in self.data.get("report")[0] \
-                    .get("per_class_result").get(key_class):
-                raise Exception('annotation_boxes')
+            if not 'prediction_boxes' in class_result_obj:
+                class_result_error += ' prediction_boxes'
 
-            if not 'prediction_scores' in self.data.get("report")[0] \
-                    .get("per_class_result").get(key_class):
-                raise Exception('prediction_scores')
+            if not 'annotation_boxes' in class_result_obj:
+                class_result_error += ' annotation_boxes'
 
-            if not 'average_precision' in self.data.get("report")[0] \
-                    .get("per_class_result").get(key_class):
-                raise Exception('average_precision')
+            if not 'prediction_scores' in class_result_obj:
+                class_result_error += ' prediction_scores'
+
+            if not 'average_precision' in class_result_obj:
+                class_result_error += ' average_precision'
+
+            if report_error:
+                report_error = report_error[1:].replace(' ', ", ")
+                raise Exception(report_error)
 
         except Exception as e:
-            print("no key '{}' in file <json>".format(e))
+            print("there are no keys in the file <json>: {}".format(e))
             raise SystemExit(1)
 
     def parser(self):
@@ -65,25 +73,26 @@ class Detection(MetricAnalysis):
             ab = {}
             ps = {}
             ap = {}
-            value = []
+            mean_ap = []
 
-            for key in info_class.keys():
-                pb[key] = info_class.get(key).get("prediction_boxes")
-                ab[key] = info_class.get(key).get("annotation_boxes")
-                ps[key] = info_class.get(key).get("prediction_scores")
-                ap[key] = info_class.get(key).get("average_precision")
-                value.append(info_class.get(key).get("average_precision"))
+            for key, value in info_class.items():
+                pb[key] = value.get("prediction_boxes")
+                ab[key] = value.get("annotation_boxes")
+                ps[key] = value.get("prediction_scores")
+                ap[key] = value.get("average_precision")
+                mean_ap.append(value.get("average_precision"))
 
             self.prediction_boxes.append(pb)
             self.annotation_boxes.append(ab)
             self.prediction_scores.append(ps)
             self.average_precision.append(ap)
-            if not all(np.isnan(value)):
-                self.average_precision_picture.append(np.nanmean(value))
+
+            if not all(np.isnan(mean_ap)):
+                self.average_precision_picture.append(np.nanmean(mean_ap))
             else:
                 self.average_precision_picture.append(np.nan)
 
-    def top_n(self):
+    def top_n(self, n=10):
         """Highlighting the top worst objects in terms of predictions
         This tool show four different types of "bad" objects:
 
@@ -102,11 +111,11 @@ class Detection(MetricAnalysis):
         or objects with no correct predictions are not taken into account.
 
         """
+
         without_correct_answers = []
         without_annotation = []
         precision = []
         average_precision_score = []
-        n = 50
 
         for i, report in enumerate(self.per_class_result):
             pm = []
@@ -128,24 +137,28 @@ class Detection(MetricAnalysis):
                 mark = len(am) / len(pm)
                 without_correct_answers.append([i, self.identifier[i], mark])
             elif not flag_annotation:
-                without_annotation.append([i, self.identifier[i]])
+                without_annotation.append(i)
             else:
                 tp = np.sum(pm)
                 fp = np.sum(np.logical_not(pm))
 
-                precision.append([i, self.identifier[i], tp / (tp + fp)])
-                average_precision_score.append([i, self.identifier[i], self.average_precision_picture[i]])
+                precision.append([i, tp / (tp + fp)])
+                average_precision_score.append([i, self.average_precision_picture[i]])
 
-        top_precision = pd.DataFrame(precision).sort_values(by=[2])[:n]
-        top_average_precision_score = pd.DataFrame(average_precision_score).sort_values(by=[2])[:n]
-        top_without_annotation = pd.DataFrame(without_annotation)
+        precision = np.array(precision)
+        average_precision_score = np.array(average_precision_score)
+
+        precision = precision[np.argsort(precision[:, 1])][:n][:, 0].astype(int)
+        average_precision_score = average_precision_score[np.argsort(average_precision_score[:, 1])][:n][:, 0].astype(int)
 
         if without_correct_answers:
-            top_without_correct_answers = pd.DataFrame(without_correct_answers).sort_values(by=[2])[:n]
-            for image_name, index in zip(top_without_correct_answers[1], top_without_correct_answers[0]):
-                image = cv2.imread(self.picture_directory + image_name)
-                image = self.marking(image, index, self.per_class_result[index], 0.3)
-                cv2.imshow(image_name, image)
+            without_correct_answers = np.array(without_correct_answers)
+            without_correct_answers = without_correct_answers[np.argsort(without_correct_answers[:, 2])][:n]
+            without_correct_answers = without_correct_answers[:, 0].astype(int)
+            for i in without_correct_answers:
+                image = cv2.imread(self.picture_directory + self.identifier[i])
+                image = self.marking(image, i, self.per_class_result[i], 0.3)
+                cv2.imshow(self.identifier[i], image)
                 key = cv2.waitKey(0)
                 cv2.destroyAllWindows()
                 if key == 27:
@@ -153,28 +166,28 @@ class Detection(MetricAnalysis):
         else:
             print('no objects without correct answers')
 
-        for image_name, index in zip(top_precision[1], top_precision[0]):
-            image = cv2.imread(self.picture_directory + image_name)
-            image = self.marking(image, index, self.per_class_result[index], 0.3)
-            cv2.imshow(image_name, image)
+        for i in precision:
+            image = cv2.imread(self.picture_directory + self.identifier[i])
+            image = self.marking(image, i, self.per_class_result[i], 0.3)
+            cv2.imshow(self.identifier[i], image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
                 break
 
-        for image_name, index in zip(top_average_precision_score[1], top_average_precision_score[0]):
-            image = cv2.imread(self.picture_directory + image_name)
-            image = self.marking(image, index, self.per_class_result[index], 0.3)
-            cv2.imshow(image_name, image)
+        for i in average_precision_score:
+            image = cv2.imread(self.picture_directory + self.identifier[i])
+            image = self.marking(image, i, self.per_class_result[i], 0.3)
+            cv2.imshow(self.identifier[i], image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
                 break
-
-        for image_name, index in zip(top_without_annotation[1], top_without_annotation[0]):
-            image = cv2.imread(self.picture_directory + image_name)
-            image = self.marking(image, index, self.per_class_result[index], 0.3)
-            cv2.imshow(image_name, image)
+                
+        for i in without_annotation:
+            image = cv2.imread(self.picture_directory + self.identifier[i])
+            image = self.marking(image, i, self.per_class_result[i], 0.3)
+            cv2.imshow(self.identifier[i], image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:

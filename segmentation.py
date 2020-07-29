@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 import os
-import pandas as pd
 from metric_analysis import MetricAnalysis
 
 
@@ -46,19 +45,24 @@ class Segmentation(MetricAnalysis):
         super(Segmentation, self).validate()
 
         try:
-            if not 'identifier' in self.data.get("report")[0]:
-                raise Exception('identifier')
+            report_error = ""
+            report_obj = self.data.get("report")[0]
 
-            if not 'confusion_matrix' in self.data.get("report")[0]:
-                raise Exception('confusion_matrix')
+            if not 'identifier' in report_obj:
+                report_error += ' identifier'
+
+            if not 'confusion_matrix' in report_obj:
+                report_error += ' confusion_matrix'
+
+            if report_error:
+                raise Exception(report_error)
 
         except Exception as e:
-            print("no key '{}' in file <json>".format(e))
+            print("there are no keys in the file <json>: {}".format(e))
             raise SystemExit(1)
 
-    def top_n(self):
+    def top_n(self, n=10):
         cm_info = []
-        n = 15
         cm_all = np.array(self.confusion_matrix)
 
         for k, cm in enumerate(cm_all):
@@ -67,17 +71,20 @@ class Segmentation(MetricAnalysis):
                 for j in range(cm.shape[1]):
                     if i != j:
                         value += cm[i, j]
-            cm_info.append([self.identifier[k], self.predicted_mask[k], value])
+            cm_info.append(value)
 
-        df_top_n = pd.DataFrame(cm_info).sort_values(by=[2], ascending=False)[:n]
+        cm_info = np.array(cm_info)
 
-        for i in range(df_top_n.shape[0]):
-            mask = np.load(self.mask + df_top_n.iloc[i][1], allow_pickle=True)
-            image = cv2.imread(self.picture_directory + df_top_n.iloc[i][0])
+        sort_index = np.argsort(cm_info)[-n:][::-1]
+
+        for i in sort_index:
+            print(i)
+            mask = np.load(self.mask + self.predicted_mask[i], allow_pickle=True)
+            image = cv2.imread(self.picture_directory + self.identifier[i])
 
             image = self.plot_image(image, mask)
 
-            cv2.imshow(df_top_n.iloc[i][1], image)
+            cv2.imshow(self.identifier[i], image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:

@@ -53,5 +53,5 @@ class MetricAnalysis(ABC):
         pass
 
     @abstractmethod
-    def top_n(self):
+    def top_n(self, n):
         pass
