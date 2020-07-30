@@ -49,12 +49,13 @@ class Segmentation(MetricAnalysis):
             report_obj = self.data.get("report")[0]
 
             if not 'identifier' in report_obj:
-                report_error += ' identifier'
+                report_error.append('identifier')
 
             if not 'confusion_matrix' in report_obj:
-                report_error += ' confusion_matrix'
+                report_error.append('confusion_matrix')
 
             if report_error:
+                report_error = ', '.join(report_error)
                 raise Exception(report_error)
 
         except Exception as e:
@@ -78,7 +79,6 @@ class Segmentation(MetricAnalysis):
         sort_index = np.argsort(cm_info)[-n:][::-1]
 
         for i in sort_index:
-            print(i)
             mask = np.load(self.mask + self.predicted_mask[i], allow_pickle=True)
             image = cv2.imread(self.picture_directory + self.identifier[i])
 

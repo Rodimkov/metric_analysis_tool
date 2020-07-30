@@ -23,26 +23,26 @@ class Classification(MetricAnalysis):
         super(Classification, self).validate()
 
         try:
-            report_error = ""
+            report_error = []
             report_obj = self.data.get("report")[0]
 
             if not 'identifier' in report_obj:
-                report_error += ' identifier'
+                report_error.append('identifier')
 
             if not 'prediction_label' in report_obj:
-                report_error += ' prediction_label'
+                report_error.append('prediction_label')
 
             if not 'annotation_label' in report_obj:
-                report_error += ' annotation_label'
+                report_error.append('annotation_label')
 
             if not 'prediction_scores' in report_obj:
-                report_error += ' prediction_scores'
+                report_error.append('prediction_scores')
 
             if not 'accuracy_result' in report_obj:
-                report_error += ' accuracy_result'
+                report_error.append('accuracy_result')
 
             if report_error:
-                report_error = report_error[1:].replace(' ', ", ")
+                report_error = ', '.join(report_error)
                 raise Exception(report_error)
 
         except Exception as e:
@@ -88,8 +88,7 @@ class Classification(MetricAnalysis):
         print(classification_report(self.annotation_label, self.prediction_label,
                                     target_names=self.label_map.values()))
 
-    def plot_accuracy_changes(self):
-        k = 100
+    def plot_accuracy_changes(self, k=100):
         accuracy_change = []
 
         for i in range(int(k / 2), int(len(self.accuracy_result) - int(k / 2))):
