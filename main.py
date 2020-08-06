@@ -2,7 +2,7 @@ import argparse
 import os
 import task_factory
 import json
-
+import orjson
 
 # This file is a temporary solution and contains inaccuracies.
 # As a result, it is not written optimally
@@ -16,7 +16,7 @@ def create_parser():
     argument_parser.add_argument('-d', '--directory', required=True, type=dir_path,
 
                                  help="directory containing data")
-    argument_parser.add_argument('-m', '--mask',
+    argument_parser.add_argument('-m', '--mask', nargs='+',
                                  help="directory containing data")
 
     return argument_parser
@@ -43,7 +43,8 @@ def dir_path(path):
 def read_data(json_file):
     with open(json_file, "r") as read_file:
         data = json.load(read_file)
-
+    #with open(json_file, "rb") as read_file:
+    #    data = orjson.loads(read_file.read())
     try:
         if not 'report_type' in data:
             raise Exception('report_type')
@@ -58,14 +59,24 @@ def read_data(json_file):
 def main():
     parser = create_parser()
     namespace = parser.parse_args()
+    if len(namespace.file) == 1:
+        data, type_task = read_data(namespace.file[0])
+        task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.directory, namespace.mask[0])
 
-    data, type_task = read_data(namespace.file[0])
+        task.visualize_data()
+        task.metrics()
+        task.top_n()
 
-    task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.directory, namespace.mask)
+    else:
+        task = []
+        for i in range(len(namespace.file)):
+            data, type_task = read_data(namespace.file[i])
+            task.append(task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.directory,
+                                                                    namespace.mask))
 
-    task.visualize_data()
-    task.metrics()
-    task.top_n()
+        #task[0].multiple_visualize_data(task)
+        task[0].multiple_top_n(task)
+
 
 
 if __name__ == '__main__':

@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-import pandas as pd
 from metric_analysis import MetricAnalysis
+from collections import OrderedDict
 
 
 class Classification(MetricAnalysis):
@@ -10,13 +10,14 @@ class Classification(MetricAnalysis):
     def __init__(self, data, directory, mask):
         super(Classification, self).__init__(data, directory, mask)
 
-        self.identifier = []
-        self.prediction_label = []
-        self.annotation_label = []
-        self.prediction_scores = []
-        self.accuracy_result = []
+        self.identifier = OrderedDict()
+        self.index = []
+        self.prediction_label = OrderedDict()
+        self.annotation_label = OrderedDict()
+        self.prediction_scores = OrderedDict()
+        self.accuracy_result = OrderedDict()
 
-        self.validate()
+        #self.validate()
         self.parser()
 
     def validate(self):
@@ -52,31 +53,38 @@ class Classification(MetricAnalysis):
     def parser(self):
         super(Classification, self).parser()
 
-        for report in self.reports:
-            self.identifier.append(report.get("identifier"))
-            self.prediction_label.append(report.get("prediction_label"))
-            self.annotation_label.append(report.get("annotation_label"))
-            self.prediction_scores.append(report.get("prediction_scores"))
-            self.accuracy_result.append(report.get("accuracy_result"))
+        for i, report in enumerate(self.reports):
+            self.identifier[report.get("identifier")] = report.get("identifier")
+            self.index.append(report.get("identifier"))
+            self.prediction_label[report.get("identifier")] = report.get("prediction_label")
+            self.annotation_label[report.get("identifier")] = report.get("annotation_label")
+            self.prediction_scores[report.get("identifier")] = report.get("prediction_scores")
+            self.accuracy_result[report.get("identifier")] = report.get("accuracy@top1_result")
 
     def top_n(self, n=10):
-        position = []
-        scores = []
+        if n > self.size_dataset:
+            print("value n is greater than the size of the dataset, it will be reduced to the size of the dataset")
+            n = self.size_dataset
 
-        for i in range(len(self.reports)):
-            position.append(-np.where(np.argsort(self.prediction_scores[i])[::-1] == self.annotation_label[i])[0][0])
-            scores.append(self.prediction_scores[i][self.annotation_label[i]])
+        position = OrderedDict()
+        scores = OrderedDict()
 
-        sort_index = np.lexsort((scores, position))[:n]
+        for name in self.identifier:
+            sort_index = np.argsort(self.prediction_scores[name])[::-1]
+            position_prediction = -np.where(sort_index == self.annotation_label[name])[0][0]
+            position[name] = position_prediction
+            scores[name] = self.prediction_scores[name][self.annotation_label[name]]
 
-        for i in sort_index:
-            pred_label = self.label_map.get(str(self.prediction_label[i]))
-            true_label = self.label_map.get(str(self.annotation_label[i]))
-            print("image name:", self.identifier[i],
+        sort_key = sorted(self.identifier, key=lambda k: (position[k], scores[k]))[:n]
+
+        for name in sort_key:
+            pred_label = self.label_map.get(str(self.prediction_label[name]))
+            true_label = self.label_map.get(str(self.annotation_label[name]))
+            print("image name:", self.identifier[name],
                   "\nprediction label:", pred_label,
                   "annotation label:", true_label)
-            image = cv2.imread(self.picture_directory + self.identifier[i])
-            cv2.imshow(self.identifier[i], image)
+            image = cv2.imread(self.picture_directory + self.identifier[name])
+            cv2.imshow(self.identifier[name], image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
@@ -85,14 +93,16 @@ class Classification(MetricAnalysis):
     def simple_metric(self):
         from sklearn.metrics import classification_report
 
-        print(classification_report(self.annotation_label, self.prediction_label,
+        print(classification_report(list(self.annotation_label.values()), list(self.prediction_label.values()),
                                     target_names=self.label_map.values()))
 
     def plot_accuracy_changes(self, k=100):
         accuracy_change = []
 
-        for i in range(int(k / 2), int(len(self.accuracy_result) - int(k / 2))):
-            value = np.mean(self.accuracy_result[i:(i + k)])
+        accuracy = list(self.accuracy_result.values())
+
+        for i in range(int(k / 2), int(len(accuracy) - int(k / 2))):
+            value = np.mean(accuracy[i:(i + k)])
             accuracy_change.append(value)
         x_range = range(int(k / 2), len(accuracy_change) + int(k / 2))
 
@@ -109,8 +119,8 @@ class Classification(MetricAnalysis):
         from sklearn.metrics import confusion_matrix
         import seaborn as sns
 
-        cm = confusion_matrix(self.prediction_label, self.annotation_label,
-                              labels=np.unique(self.annotation_label))
+        cm = confusion_matrix(list(self.prediction_label.values()), list(self.annotation_label.values()),
+                              labels=np.unique(list(self.annotation_label.values())))
 
         cm_sum = np.sum(cm, axis=1, keepdims=True)
         cm_prob = cm / cm_sum.astype(float) * 100
@@ -123,10 +133,7 @@ class Classification(MetricAnalysis):
 
         _, ax = plt.subplots(figsize=(8, 8))
 
-        df_cm = pd.DataFrame(cm, index=self.label_map.values(),
-                             columns=self.label_map.values())
-
-        sns.heatmap(df_cm, cmap="YlGnBu", annot=text, fmt='', ax=ax)
+        sns.heatmap(cm, cmap="YlGnBu", annot=text, fmt='', ax=ax)
 
         ax.set_title("Confusion matrix")
 
@@ -141,19 +148,70 @@ class Classification(MetricAnalysis):
 
     def visualize_data(self):
 
-        for i in range(len(self.reports)):
+        for name in self.identifier:
 
-            pred_label = self.label_map.get(str(self.prediction_label[i]))
-            true_label = self.label_map.get(str(self.annotation_label[i]))
+            pred_label = self.label_map.get(str(self.prediction_label[name]))
+            true_label = self.label_map.get(str(self.annotation_label[name]))
 
-            print("image name:", self.identifier[i],
+            print("image name:", self.identifier[name],
                   "\nprediction label:", pred_label,
                   "annotation label:", true_label,
-                  "prediction scores:", np.max(self.prediction_scores[i]))
+                  "prediction scores:", np.max(self.prediction_scores[name]))
 
-            image = cv2.imread(self.picture_directory + self.identifier[i])
-            cv2.imshow(self.identifier[i], image)
+            image = cv2.imread(self.picture_directory + name)
+            cv2.imshow(name, image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
+                print()
+                break
+
+    @staticmethod
+    def multiple_visualize_data(objs):
+        for name in list(objs[0].identifier.keys()):
+            print("image name:", name)
+
+            for obj in objs:
+                label = obj.label_map.get(str(obj.prediction_label[name]))
+                print("prediction label:", label,
+                      "prediction scores:", np.max(obj.prediction_scores[name]))
+
+            image = cv2.imread(objs[0].picture_directory + name)
+            cv2.imshow(name, image)
+            key = cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            if key == 27:
+                print()
+                break
+
+    @staticmethod
+    def multiple_top_n(objs, n=10):
+
+        position = OrderedDict()
+        scores = OrderedDict()
+
+        for name in objs[0].identifier:
+
+            sort_index = np.argsort(objs[1].prediction_scores[name])[::-1]
+            position_prediction = -np.where(sort_index == objs[0].prediction_label[name])[0][0]
+            position[name] = position_prediction
+            scores[name] = objs[1].prediction_scores[name][objs[0].prediction_label[name]]
+
+        sort_key = sorted(objs[0].identifier, key=lambda k: (position[k], scores[k]))[:n]
+
+        for name in sort_key:
+            print("image name:", name)
+
+            label_0 = objs[0].label_map.get(str(objs[0].prediction_label[name]))
+            label_1 = objs[1].label_map.get(str(objs[1].prediction_label[name]))
+            print("prediction label 0:", label_0,
+                  "prediction label 1:", label_1,
+                  "prediction scores:", np.max(objs[0].prediction_scores[name]))
+
+            image = cv2.imread(objs[0].picture_directory + name)
+            cv2.imshow(name, image)
+            key = cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            if key == 27:
+                print()
                 break
