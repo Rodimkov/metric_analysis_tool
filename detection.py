@@ -3,11 +3,15 @@ from metric_analysis import MetricAnalysis
 import matplotlib.pyplot as plt
 import numpy as np
 from collections import OrderedDict
+import warnings
+
+warnings.simplefilter('error', UserWarning)
+
 
 class Detection(MetricAnalysis):
 
-    def __init__(self, data, directory, mask):
-        super(Detection, self).__init__(data, directory, mask)
+    def __init__(self, data, file, directory, mask):
+        super(Detection, self).__init__(data, file, directory, mask)
 
         self.identifier = OrderedDict()
         self.index = []
@@ -284,8 +288,8 @@ class Detection(MetricAnalysis):
         for name in self.identifier:
             image = cv2.imread(self.picture_directory + name)
 
-            self.marking_predition(image, name, (255,0,0), threshold_scores)
-            self.marking_annotation(image, name, (0,0,255))
+            self.marking_predition(image, name, (255, 0, 0), threshold_scores)
+            self.marking_annotation(image, name, (0, 0, 255))
 
             cv2.imshow(name, image)
             key = cv2.waitKey(0)
@@ -305,17 +309,21 @@ class Detection(MetricAnalysis):
         color = np.resize(color, new_shape=(len(objs), 3))
 
         for name in objs[0].identifier:
-            image = cv2.imread(objs[0].picture_directory + name)
-            for i, obj in enumerate(objs):
-                obj.marking_predition(image, name, tuple(color[i]), threshold_scores)
 
-            #objs[0].marking_annotation(image, name, (0,0,255))
+            if not objs[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+            else:
+                image = cv2.imread(objs[0].picture_directory + name)
+                for i, obj in enumerate(objs):
+                    obj.marking_predition(image, name, tuple(color[i]), threshold_scores)
 
-            cv2.imshow(name, image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
+                # objs[0].marking_annotation(image, name, (0,0,255))
+
+                cv2.imshow(name, image)
+                key = cv2.waitKey(0)
+                cv2.destroyAllWindows()
+                if key == 27:
+                    break
 
     @staticmethod
     def intersections(prediction_box, annotation_boxes):
@@ -357,24 +365,27 @@ class Detection(MetricAnalysis):
             flag = False
             value = []
 
-            for key in report.keys():
-                box = []
-                for obj in objs:
-                    count = np.sum(np.array(obj.prediction_scores[name][key]) > 0.3)
-                    box.append(obj.prediction_boxes[name][key][:count])
-
-                similarity_matrix = objs[0].calculate_similarity_matrix(box[0], box[1])
-
-                if similarity_matrix.size != 0:
-                    flag = True
-
-                count_match = np.sum(np.sum(similarity_matrix > 0.5, axis=0) >= 1.0)
-                value.append(np.divide(count_match, len(box[0]), out=np.zeros(1), where=(len(box[0]) != 0)))
-
-            if flag:
-                result[name] = np.mean(value)
+            if not objs[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(objs[1].file, name))
             else:
-                without_answers[name] = name
+                for key in report.keys():
+                    box = []
+                    for obj in objs:
+                        count = np.sum(np.array(obj.prediction_scores[name][key]) > 0.3)
+                        box.append(obj.prediction_boxes[name][key][:count])
+
+                    similarity_matrix = objs[0].calculate_similarity_matrix(box[0], box[1])
+
+                    if similarity_matrix.size != 0:
+                        flag = True
+
+                    count_match = np.sum(np.sum(similarity_matrix > 0.5, axis=0) >= 1.0)
+                    value.append(np.divide(count_match, len(box[0]), out=np.zeros(1), where=(len(box[0]) != 0)))
+
+                if flag:
+                    result[name] = np.mean(value)
+                else:
+                    without_answers[name] = name
 
         sort_key = sorted(result, key=lambda k: (result[k]), reverse=False)[:n]
 
@@ -406,7 +417,3 @@ class Detection(MetricAnalysis):
             cv2.destroyAllWindows()
             if key == 27:
                 break
-
-
-
-

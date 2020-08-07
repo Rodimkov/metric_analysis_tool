@@ -43,8 +43,9 @@ def dir_path(path):
 def read_data(json_file):
     with open(json_file, "r") as read_file:
         data = json.load(read_file)
+
     #with open(json_file, "rb") as read_file:
-    #    data = orjson.loads(read_file.read())
+    #   data = orjson.loads(read_file.read())
     try:
         if not 'report_type' in data:
             raise Exception('report_type')
@@ -61,7 +62,11 @@ def main():
     namespace = parser.parse_args()
     if len(namespace.file) == 1:
         data, type_task = read_data(namespace.file[0])
-        task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.directory, namespace.mask[0])
+        try:
+            task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0], namespace.directory, namespace.mask[0])
+        except TypeError:
+            task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0], namespace.directory, namespace.mask)
+
 
         task.visualize_data()
         task.metrics()
@@ -71,10 +76,14 @@ def main():
         task = []
         for i in range(len(namespace.file)):
             data, type_task = read_data(namespace.file[i])
-            task.append(task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.directory,
+            try:
+                task.append(task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[i], namespace.directory,
+                                                                    namespace.mask[i]))
+            except TypeError:
+                task.append(task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[i], namespace.directory,
                                                                     namespace.mask))
 
-        #task[0].multiple_visualize_data(task)
+        task[0].multiple_visualize_data(task)
         task[0].multiple_top_n(task)
 
 

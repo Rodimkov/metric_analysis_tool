@@ -4,12 +4,15 @@ import cv2
 import os
 from metric_analysis import MetricAnalysis
 from collections import OrderedDict
+import warnings
+
+warnings.simplefilter('error', UserWarning)
 
 
 class Segmentation(MetricAnalysis):
 
-    def __init__(self, data, directory, mask):
-        super(Segmentation, self).__init__(data, directory, mask)
+    def __init__(self, data, file, directory, mask):
+        super(Segmentation, self).__init__(data, file, directory, mask)
 
         self.identifier = OrderedDict()
         self.index = []
@@ -157,52 +160,59 @@ class Segmentation(MetricAnalysis):
 
         for name in objs[0].identifier:
             prediction = []
-            for i, obj in enumerate(objs):
-                mask = np.load(obj.mask + obj.predicted_mask[name], allow_pickle=True)
-                image = cv2.imread(obj.picture_directory + name)
-                prediction.append(image.copy())
 
-                prediction[i] = obj.plot_image(prediction[i], mask)
+            if not objs[1].identifier.get('name', []):
+                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+            else:
+                for i, obj in enumerate(objs):
+                    mask = np.load(obj.mask + obj.predicted_mask[name], allow_pickle=True)
+                    image = cv2.imread(obj.picture_directory + name)
+                    prediction.append(image.copy())
 
-            for i in range(len(prediction)):
-                print(i)
-                cv2.imshow(str(i), prediction[i])
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
+                    prediction[i] = obj.plot_image(prediction[i], mask)
+
+                for i in range(len(prediction)):
+                    print(i)
+                    cv2.imshow(str(i), prediction[i])
+                key = cv2.waitKey(0)
+                cv2.destroyAllWindows()
+                if key == 27:
+                    break
 
     @staticmethod
     def multiple_top_n(objs, n=10):
         dist = OrderedDict()
 
         for name in objs[0].identifier:
-            lenght = len(objs[0].confusion_matrix[name])
-            a = np.ones(len(objs[0].confusion_matrix[name]))
-            b = np.ones(len(objs[0].confusion_matrix[name]))
 
-            for i in range(lenght):
-                for j in range(lenght):
-                    if i == j:
-                        a[i] = objs[0].confusion_matrix[name][i][j]
-                        b[i] = objs[1].confusion_matrix[name][i][j]
+            if not objs[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+            else:
+                length = len(objs[0].confusion_matrix[name])
+                a = np.ones(len(objs[0].confusion_matrix[name]))
+                b = np.ones(len(objs[1].confusion_matrix[name]))
 
-            dist[name] = np.linalg.norm(a - b)
+                for i in range(length):
+                    for j in range(length):
+                        if i == j:
+                            a[i] = objs[0].confusion_matrix[name][i][j]
+                            b[i] = objs[1].confusion_matrix[name][i][j]
+
+                dist[name] = np.linalg.norm(a - b)
 
         sort_key = sorted(dist, key=lambda k: (dist[k]), reverse=True)[:n]
 
         for name in sort_key:
-            print(dist[name])
             image = cv2.imread(objs[0].picture_directory + name)
             prediction = []
             for i, obj in enumerate(objs):
                 print(obj.mask)
                 mask = np.load(obj.mask + obj.predicted_mask[name], allow_pickle=True)
 
-
                 prediction.append(obj.plot_image(image.copy(), mask))
 
-                prediction[i] = cv2.resize(prediction[i], (int(prediction[i].shape[1]/3), int(prediction[i].shape[0]/3)))
+                prediction[i] = cv2.resize(prediction[i],
+                                           (int(prediction[i].shape[1] / 3), int(prediction[i].shape[0] / 3)))
 
             for i in range(len(prediction)):
                 cv2.imshow(str(i), prediction[i])

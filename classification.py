@@ -3,12 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 from metric_analysis import MetricAnalysis
 from collections import OrderedDict
+import warnings
+
+warnings.simplefilter('error', UserWarning)
 
 
 class Classification(MetricAnalysis):
 
-    def __init__(self, data, directory, mask):
-        super(Classification, self).__init__(data, directory, mask)
+    def __init__(self, data, file, directory, mask):
+        super(Classification, self).__init__(data, file, directory, mask)
 
         self.identifier = OrderedDict()
         self.index = []
@@ -17,7 +20,7 @@ class Classification(MetricAnalysis):
         self.prediction_scores = OrderedDict()
         self.accuracy_result = OrderedDict()
 
-        #self.validate()
+        # self.validate()
         self.parser()
 
     def validate(self):
@@ -50,6 +53,40 @@ class Classification(MetricAnalysis):
             print("there are no keys in the file <json>: {}".format(e))
             raise SystemExit(1)
 
+        try:
+            report_error = []
+            report_obj = self.data.get("report")[0]
+
+            value = report_obj['identifier']
+
+            if not isinstance(value, str):
+                report_error.append('identifier')
+
+            value = report_obj['prediction_label']
+            if not isinstance(value, int):
+                report_error.append('prediction_label')
+
+            value = report_obj['annotation_label']
+            if not isinstance(value, int):
+                report_error.append('annotation_label')
+
+            value = report_obj['prediction_scores']
+
+            if (not isinstance(value, list)) or (not value):
+                report_error.append('prediction_scores')
+
+            value = report_obj['accuracy_result']
+            if not isinstance(value, float):
+                report_error.append('accuracy_result')
+
+            if report_error:
+                report_error = ', '.join(report_error)
+                raise Exception(report_error)
+
+        except Exception as e:
+            print("invalid value by key: {} ".format(e))
+            raise SystemExit(1)
+
     def parser(self):
         super(Classification, self).parser()
 
@@ -60,6 +97,7 @@ class Classification(MetricAnalysis):
             self.annotation_label[report.get("identifier")] = report.get("annotation_label")
             self.prediction_scores[report.get("identifier")] = report.get("prediction_scores")
             self.accuracy_result[report.get("identifier")] = report.get("accuracy@top1_result")
+            # self.accuracy_result[report.get("identifier")] = report.get("accuracy_result")
 
     def top_n(self, n=10):
         if n > self.size_dataset:
@@ -169,20 +207,24 @@ class Classification(MetricAnalysis):
     @staticmethod
     def multiple_visualize_data(objs):
         for name in list(objs[0].identifier.keys()):
-            print("image name:", name)
 
-            for obj in objs:
-                label = obj.label_map.get(str(obj.prediction_label[name]))
-                print("prediction label:", label,
-                      "prediction scores:", np.max(obj.prediction_scores[name]))
+            if not objs[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+            else:
+                print("image name:", name)
 
-            image = cv2.imread(objs[0].picture_directory + name)
-            cv2.imshow(name, image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                print()
-                break
+                for obj in objs:
+                    label = obj.label_map.get(str(obj.prediction_label[name]))
+                    print("prediction label:", label,
+                          "prediction scores:", np.max(obj.prediction_scores[name]))
+
+                image = cv2.imread(objs[0].picture_directory + name)
+                cv2.imshow(name, image)
+                key = cv2.waitKey(0)
+                cv2.destroyAllWindows()
+                if key == 27:
+                    print()
+                    break
 
     @staticmethod
     def multiple_top_n(objs, n=10):
@@ -191,11 +233,13 @@ class Classification(MetricAnalysis):
         scores = OrderedDict()
 
         for name in objs[0].identifier:
-
-            sort_index = np.argsort(objs[1].prediction_scores[name])[::-1]
-            position_prediction = -np.where(sort_index == objs[0].prediction_label[name])[0][0]
-            position[name] = position_prediction
-            scores[name] = objs[1].prediction_scores[name][objs[0].prediction_label[name]]
+            if not objs[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+            else:
+                sort_index = np.argsort(objs[1].prediction_scores[name])[::-1]
+                position_prediction = -np.where(sort_index == objs[0].prediction_label[name])[0][0]
+                position[name] = position_prediction
+                scores[name] = objs[1].prediction_scores[name][objs[0].prediction_label[name]]
 
         sort_key = sorted(objs[0].identifier, key=lambda k: (position[k], scores[k]))[:n]
 

@@ -4,9 +4,10 @@ from collections import OrderedDict
 
 class MetricAnalysis(ABC):
 
-    def __init__(self, data, directory, mask):
+    def __init__(self, data, file, directory, mask):
         self.picture_directory = directory
         self.mask = mask
+        self.file = file
 
         self.data = data
 
@@ -24,7 +25,7 @@ class MetricAnalysis(ABC):
         self.label_map = OrderedDict()
 
         for name in sorted(self.dataset_meta.get("label_map").keys()):
-            self.label_map[name] = self.dataset_meta.get("label_map").get(name)
+           self.label_map[name] = self.dataset_meta.get("label_map").get(name)
 
         #for i in range(1000):
         #    self.label_map[str(i)] = str(i)
