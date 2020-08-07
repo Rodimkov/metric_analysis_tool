@@ -23,11 +23,11 @@ class MetricAnalysis(ABC):
         self.report_type = self.dataset_meta.get("report_type")
         self.label_map = OrderedDict()
 
-        #for name in sorted(self.dataset_meta.get("label_map").keys()):
-        #    self.label_map[name] = self.dataset_meta.get("label_map").get(name)
+        for name in sorted(self.dataset_meta.get("label_map").keys()):
+            self.label_map[name] = self.dataset_meta.get("label_map").get(name)
 
-        for i in range(1000):
-            self.label_map[str(i)] = str(i)
+        #for i in range(1000):
+        #    self.label_map[str(i)] = str(i)
 
         self.size_dataset = len(self.reports)
 
