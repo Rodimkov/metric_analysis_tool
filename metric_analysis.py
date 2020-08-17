@@ -1,12 +1,14 @@
 from abc import ABC, abstractmethod
-import json
+from collections import OrderedDict
 
 
 class MetricAnalysis(ABC):
 
-    def __init__(self, data, directory, mask):
+    def __init__(self, type_task, data, file_name, directory, mask):
         self.picture_directory = directory
         self.mask = mask
+        self.file = file_name
+        self.type_task = type_task
 
         self.data = data
 
@@ -21,10 +23,15 @@ class MetricAnalysis(ABC):
         self.dataset_meta = self.data.get("dataset_meta")
         self.reports = self.data.get("report")
         self.report_type = self.dataset_meta.get("report_type")
-        self.label_map = {}
+        self.label_map = OrderedDict()
 
         for name in sorted(self.dataset_meta.get("label_map").keys()):
-            self.label_map[name] = self.dataset_meta.get("label_map").get(name)
+           self.label_map[name] = self.dataset_meta.get("label_map").get(name)
+
+        #for i in range(1000):
+        #    self.label_map[str(i)] = str(i)
+
+        self.size_dataset = len(self.reports)
 
     def validate(self):
         try:

@@ -2,26 +2,29 @@ import cv2
 from metric_analysis import MetricAnalysis
 import matplotlib.pyplot as plt
 import numpy as np
+from collections import OrderedDict
+import warnings
 
 
 class Detection(MetricAnalysis):
 
-    def __init__(self, data, directory, mask):
-        super(Detection, self).__init__(data, directory, mask)
+    def __init__(self, type_task, data, file_name, directory, mask):
+        super().__init__(type_task, data, file_name, directory, mask)
 
-        self.identifier = []
-        self.per_class_result = []
-        self.prediction_boxes = []
-        self.annotation_boxes = []
-        self.prediction_scores = []
-        self.average_precision = []
-        self.average_precision_picture = []
+        self.identifier = OrderedDict()
+        self.index = []
+        self.per_class_result = OrderedDict()
+        self.prediction_boxes = OrderedDict()
+        self.annotation_boxes = OrderedDict()
+        self.prediction_scores = OrderedDict()
+        self.average_precision = OrderedDict()
+        self.average_precision_picture = OrderedDict()
 
         self.validate()
         self.parser()
 
     def validate(self):
-        super(Detection, self).validate()
+        super().validate()
 
         try:
             report_error = []
@@ -63,35 +66,36 @@ class Detection(MetricAnalysis):
             raise SystemExit(1)
 
     def parser(self):
-        super(Detection, self).parser()
+        super().parser()
 
-        for report in self.reports:
-            self.identifier.append(report.get("identifier"))
-            self.per_class_result.append(report.get("per_class_result"))
+        for i, report in enumerate(self.reports):
+            self.identifier[report["identifier"]] = report["identifier"]
+            self.index.append(report["identifier"])
+            self.per_class_result[report["identifier"]] = report["per_class_result"]
 
-        for info_class in self.per_class_result:
-            pb = {}
-            ab = {}
-            ps = {}
-            ap = {}
+        for name, info_class in self.per_class_result.items():
+            pb = OrderedDict()
+            ab = OrderedDict()
+            ps = OrderedDict()
+            ap = OrderedDict()
             mean_ap = []
 
             for key, value in info_class.items():
-                pb[key] = value.get("prediction_boxes")
-                ab[key] = value.get("annotation_boxes")
-                ps[key] = value.get("prediction_scores")
-                ap[key] = value.get("average_precision")
-                mean_ap.append(value.get("average_precision"))
+                pb[key] = value["prediction_boxes"]
+                ab[key] = value["annotation_boxes"]
+                ps[key] = value["prediction_scores"]
+                ap[key] = value["average_precision"]
+                mean_ap.append(value["average_precision"])
 
-            self.prediction_boxes.append(pb)
-            self.annotation_boxes.append(ab)
-            self.prediction_scores.append(ps)
-            self.average_precision.append(ap)
+            self.prediction_boxes[name] = pb
+            self.annotation_boxes[name] = ab
+            self.prediction_scores[name] = ps
+            self.average_precision[name] = ap
 
             if not all(np.isnan(mean_ap)):
-                self.average_precision_picture.append(np.nanmean(mean_ap))
+                self.average_precision_picture[name] = np.nanmean(mean_ap)
             else:
-                self.average_precision_picture.append(np.nan)
+                self.average_precision_picture[name] = np.nan
 
     def top_n(self, n=10):
         """Highlighting the top worst objects in terms of predictions
@@ -113,12 +117,17 @@ class Detection(MetricAnalysis):
 
         """
 
-        without_correct_answers = []
-        without_annotation = []
-        precision = []
-        average_precision_score = []
+        if n > self.size_dataset:
+            warnings.warn("""value n is greater than the size of the dataset,
+                             it will be reduced to the size of the dataset""")
+            n = self.size_dataset
 
-        for i, report in enumerate(self.per_class_result):
+        without_correct_answers = OrderedDict()
+        without_annotation = OrderedDict()
+        precision = OrderedDict()
+        average_precision_score = OrderedDict()
+
+        for name, report in self.per_class_result.items():
             pm = []
             am = []
             flag_annotation = False
@@ -136,33 +145,29 @@ class Detection(MetricAnalysis):
 
             if (not flag_prediction) and flag_annotation:
                 mark = len(am) / len(pm)
-                without_correct_answers.append([i, self.identifier[i], mark])
+                without_correct_answers[name] = mark
             elif not flag_annotation:
-                without_annotation.append(i)
+                without_annotation[name] = name
             else:
                 tp = np.sum(pm)
                 fp = np.sum(np.logical_not(pm))
 
-                precision.append([i, tp / (tp + fp)])
-                average_precision_score.append([i, self.average_precision_picture[i]])
+                precision[name] = tp / (tp + fp)
+                average_precision_score[name] = self.average_precision_picture[name]
 
-        precision = np.array(precision)
-        average_precision_score = np.array(average_precision_score)
-
-        precision = precision[np.argsort(precision[:, 1])][:n][:, 0].astype(int)
-        average_precision_score = average_precision_score[np.argsort(average_precision_score[:, 1])][:n][:, 0].astype(
-            int)
+        sort_precision = sorted(precision, key=lambda k: (precision[k]))[:n]
+        sort_average_precision = sorted(average_precision_score, key=lambda k: (average_precision_score[k]))[:n]
 
         if without_correct_answers:
-            without_correct_answers = np.array(without_correct_answers)
-            without_correct_answers = without_correct_answers[np.argsort(without_correct_answers[:, 2])][:n]
-            without_correct_answers = without_correct_answers[:, 0].astype(int)
             print("pictures without the correct answer, but annotated")
-            for i in without_correct_answers:
-                image = cv2.imread(self.picture_directory + self.identifier[i])
-                image = self.marking(image, i, self.per_class_result[i], 0.3)
-                print("picture name: ", self.identifier[i])
-                cv2.imshow(self.identifier[i], image)
+            for name in without_correct_answers:
+                image = cv2.imread(self.picture_directory + self.identifier[name])
+
+                self.marking_predition(image, name, (255, 0, 0), 0.3)
+                self.marking_annotation(image, name, (0, 0, 255))
+
+                print("picture name: ", self.identifier[name])
+                cv2.imshow(self.identifier[name], image)
                 key = cv2.waitKey(0)
                 cv2.destroyAllWindows()
                 if key == 27:
@@ -171,53 +176,64 @@ class Detection(MetricAnalysis):
             print('no objects without correct answers')
 
         print("worst based on the metric: 'precision'")
-        for i in precision:
-            image = cv2.imread(self.picture_directory + self.identifier[i])
-            image = self.marking(image, i, self.per_class_result[i], 0.3)
-            print("picture name: ", self.identifier[i])
-            cv2.imshow(self.identifier[i], image)
+        for name in sort_precision:
+            image = cv2.imread(self.picture_directory + self.identifier[name])
+
+            self.marking_predition(image, name, (255, 0, 0), 0.3)
+            self.marking_annotation(image, name, (0, 0, 255))
+
+            print("picture name: ", self.identifier[name])
+            cv2.imshow(self.identifier[name], image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
                 break
 
         print("worst based on the metric: 'average precision'")
-        for i in average_precision_score:
-            image = cv2.imread(self.picture_directory + self.identifier[i])
-            image = self.marking(image, i, self.per_class_result[i], 0.3)
-            print("picture name: ", self.identifier[i])
-            cv2.imshow(self.identifier[i], image)
+        for name in sort_average_precision:
+            image = cv2.imread(self.picture_directory + self.identifier[name])
+
+            self.marking_predition(image, name, (255, 0, 0), 0.3)
+            self.marking_annotation(image, name, (0, 0, 255))
+
+            print("picture name: ", self.identifier[name])
+            cv2.imshow(self.identifier[name], image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
                 break
 
         print("pictures without annotation")
-        for i in without_annotation:
-            image = cv2.imread(self.picture_directory + self.identifier[i])
-            image = self.marking(image, i, self.per_class_result[i], 0.3)
-            print("picture name: ", self.identifier[i])
-            cv2.imshow(self.identifier[i], image)
+        for name in without_annotation:
+            image = cv2.imread(self.picture_directory + self.identifier[name])
+
+            self.marking_predition(image, name, (255, 0, 0), 0.3)
+            self.marking_annotation(image, name, (0, 0, 255))
+
+            print("picture name: ", self.identifier[name])
+            cv2.imshow(self.identifier[name], image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
                 break
 
     def plot_average_precision_changes(self, k=100):
-        accuracy_change = []
+        precision_change = []
 
-        for i in range(int(k / 2), int(len(self.average_precision) - int(k / 2))):
-            value = np.nanmean(self.average_precision_picture[i:(i + k)])
-            accuracy_change.append(value)
-        x_range = range(int(k / 2), len(accuracy_change) + int(k / 2))
+        precision = list(self.average_precision_picture.values())
+
+        for i in range(int(k / 2), int(len(precision) - int(k / 2))):
+            value = np.nanmean(precision[i:(i + k)])
+            precision_change.append(value)
+        x_range = range(int(k / 2), len(precision_change) + int(k / 2))
 
         _, ax = plt.subplots(figsize=(8, 6))
         ax.set_title("Change average precision in the process of predicting results")
 
         ax.set_xlabel("image number")
-        ax.set_ylabel("accuracy")
+        ax.set_ylabel("average precision")
 
-        ax.plot(x_range, accuracy_change)
+        ax.plot(x_range, precision_change)
         plt.show()
 
     def metrics(self):
@@ -225,7 +241,7 @@ class Detection(MetricAnalysis):
 
     @staticmethod
     def draw_boxes(image, boxes, label_class, color=(255, 255, 255), thickness=2):
-
+        color = [int(x) for x in color]
         for i, box in enumerate(boxes):
             start_point = (int(box[0]), int(box[1]))
             end_point = (int(box[2]), int(box[3]))
@@ -239,35 +255,166 @@ class Detection(MetricAnalysis):
 
         return image
 
-    def marking(self, image, i, info_class, threshold_scores):
-        for key in info_class:
+    def marking_predition(self, image, name, color, threshold_scores):
+        info = self.per_class_result[name]
+        for key in info:
 
             label_class = []
             predict_boxes = []
 
-            for box, score in zip(self.prediction_boxes[i].get(key, []),
-                                  self.prediction_scores[i].get(key, [])):
+            for box, score in zip(self.prediction_boxes[name].get(key),
+                                  self.prediction_scores[name].get(key)):
                 if score > threshold_scores:
                     predict_boxes.append(box)
                     name_class = self.label_map.get(key)
                     label_class.append('{} {:.3f}'.format(name_class, score))
 
-            image = self.draw_boxes(image, predict_boxes, label_class, color=(255, 0, 0))
+            image = self.draw_boxes(image, predict_boxes, label_class, color=color)
 
-            label_class = [self.label_map.get(key)] * len(self.annotation_boxes[i].get(key))
-            image = self.draw_boxes(image, self.annotation_boxes[i].get(key, []), label_class,
-                                    color=(0, 0, 255))
+        return image
+
+    def marking_annotation(self, image, name, color):
+        info = self.per_class_result[name]
+        for key in info:
+            label_class = [self.label_map.get(key)] * len(self.annotation_boxes[name].get(key))
+            image = self.draw_boxes(image, self.annotation_boxes[name].get(key, []), label_class,
+                                    color=color)
 
         return image
 
     def visualize_data(self):
         threshold_scores = 0.5
-        for i, info_class in enumerate(self.per_class_result):
-            image = cv2.imread(self.picture_directory + self.identifier[i])
+        for name in self.identifier:
+            image = cv2.imread(self.picture_directory + name)
 
-            self.marking(image, i, info_class, threshold_scores)
+            self.marking_predition(image, name, (255, 0, 0), threshold_scores)
+            self.marking_annotation(image, name, (0, 0, 255))
 
-            cv2.imshow(self.identifier[i], image)
+            cv2.imshow(name, image)
+            key = cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            if key == 27:
+                break
+
+    @staticmethod
+    def multiple_visualize_data(set_task):
+        threshold_scores = 0.5
+        color = np.zeros((len(set_task), 1, 3), np.uint8)
+
+        for i in range(len(set_task)):
+            color[i] = np.array([i * int(180 / (len(set_task))), 255, 255])
+
+        color = cv2.cvtColor(color, cv2.COLOR_HSV2BGR)
+        color = np.resize(color, new_shape=(len(set_task), 3))
+
+        for name in set_task[0].identifier:
+
+            if not set_task[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
+            else:
+                image = cv2.imread(set_task[0].picture_directory + name)
+                for i, task in enumerate(set_task):
+                    task.marking_predition(image, name, tuple(color[i]), threshold_scores)
+
+                cv2.imshow(name, image)
+                key = cv2.waitKey(0)
+                cv2.destroyAllWindows()
+                if key == 27:
+                    break
+
+    @staticmethod
+    def intersections(prediction_box, annotation_boxes):
+        px_min, py_min, px_max, py_max = prediction_box
+        ax_mins, ay_mins, ax_maxs, ay_maxs = annotation_boxes
+
+        x_mins = np.maximum(ax_mins, px_min)
+        y_mins = np.maximum(ay_mins, py_min)
+        x_maxs = np.minimum(ax_maxs, px_max)
+        y_maxs = np.minimum(ay_maxs, py_max)
+
+        return x_mins, y_mins, np.maximum(x_mins, x_maxs), np.maximum(y_mins, y_maxs)
+
+    @staticmethod
+    def area(box):
+        x0, y0, x1, y1 = box
+        return (x1 - x0) * (y1 - y0)
+
+    def calculate_similarity_matrix(self, set_a, set_b):
+        similarity = np.zeros([len(set_a), len(set_b)], dtype=np.float32)
+        for i, box_a in enumerate(set_a):
+            for j, box_b in enumerate(set_b):
+                similarity[i, j] = self.evaluate(box_a, box_b)
+
+        return similarity
+
+    def evaluate(self, prediction_box, annotation_boxes):
+        intersections_area = self.area(self.intersections(prediction_box, annotation_boxes))
+        unions = self.area(prediction_box) + self.area(annotation_boxes) - intersections_area
+        return np.divide(
+            intersections_area, unions, out=np.zeros_like(intersections_area, dtype=float), where=unions != 0
+        )
+
+    @staticmethod
+    def multiple_top_n(set_task, n=10):
+        result = OrderedDict()
+        without_answers = OrderedDict()
+        for name, report in list(set_task[0].per_class_result.items()):
+            flag = False
+            value = []
+
+            if not set_task[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
+            else:
+                for key in report.keys():
+                    box = []
+                    for task in set_task:
+                        count = np.sum(np.array(task.prediction_scores[name][key]) > 0.3)
+                        box.append(task.prediction_boxes[name][key][:count])
+
+                    similarity_matrix = set_task[0].calculate_similarity_matrix(box[0], box[1])
+
+                    if similarity_matrix.size != 0:
+                        flag = True
+
+                    count_match = np.sum(np.sum(similarity_matrix > 0.5, axis=0) >= 1.0)
+                    value.append(np.divide(count_match, len(box[0]), out=np.zeros(1), where=(len(box[0]) != 0)))
+
+                if flag:
+                    result[name] = np.mean(value)
+                else:
+                    without_answers[name] = name
+
+        if n > len(result):
+            warnings.warn("""the n value is greater than the number of identical objects in both files, 
+                            it will be reduced to the size of the dataset""")
+            n = len(result)
+
+        sort_key = sorted(result, key=lambda k: (result[k]), reverse=False)[:n]
+
+        color = np.zeros((len(set_task), 1, 3), np.uint8)
+
+        for i in range(len(set_task)):
+            color[i] = np.array([i * int(180 / (len(set_task))), 255, 255])
+
+        color = cv2.cvtColor(color, cv2.COLOR_HSV2BGR)
+        color = np.resize(color, new_shape=(len(set_task), 3))
+
+        for name in without_answers:
+            image = cv2.imread(set_task[0].picture_directory + name)
+
+            cv2.imshow(name, image)
+            key = cv2.waitKey(0)
+            cv2.destroyAllWindows()
+            if key == 27:
+                break
+
+        for name in sort_key:
+            image = cv2.imread(set_task[0].picture_directory + name)
+
+            for i, task in enumerate(set_task):
+                task.marking_predition(image, name, tuple(color[i]), 0.3)
+
+            cv2.imshow(name, image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
