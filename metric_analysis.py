@@ -4,10 +4,11 @@ from collections import OrderedDict
 
 class MetricAnalysis(ABC):
 
-    def __init__(self, data, file, directory, mask):
+    def __init__(self, type_task, data, file_name, directory, mask):
         self.picture_directory = directory
         self.mask = mask
-        self.file = file
+        self.file = file_name
+        self.type_task = type_task
 
         self.data = data
 

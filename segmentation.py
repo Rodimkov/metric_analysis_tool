@@ -6,13 +6,11 @@ from metric_analysis import MetricAnalysis
 from collections import OrderedDict
 import warnings
 
-warnings.simplefilter('error', UserWarning)
-
 
 class Segmentation(MetricAnalysis):
 
-    def __init__(self, data, file, directory, mask):
-        super(Segmentation, self).__init__(data, file, directory, mask)
+    def __init__(self, type_task, data, file_name, directory, mask):
+        super().__init__(type_task, data, file_name, directory, mask)
 
         self.identifier = OrderedDict()
         self.index = []
@@ -24,15 +22,14 @@ class Segmentation(MetricAnalysis):
         self.parser()
 
     def parser(self):
-        super(Segmentation, self).parser()
-
+        super().parser()
         for i, report in enumerate(self.reports):
-            self.identifier[report.get("identifier")] = report.get("identifier")
-            self.index.append(report.get("identifier"))
+            self.identifier[report["identifier"]] = report["identifier"]
+            self.index.append(report["identifier"])
 
-            name = os.path.basename(report.get("predicted_mask"))
-            self.predicted_mask[report.get("identifier")] = name
-            self.confusion_matrix[report.get("identifier")] = report.get("confusion_matrix")
+            name = os.path.basename(report["predicted_mask"])
+            self.predicted_mask[report["identifier"]] = name
+            self.confusion_matrix[report["identifier"]] = report["confusion_matrix"]
 
         if 'segmentation_colors' in self.dataset_meta.keys():
             self.segmentation_colors = np.array(self.data.get("dataset_meta").get('segmentation_colors'))
@@ -47,7 +44,7 @@ class Segmentation(MetricAnalysis):
             self.segmentation_colors = np.resize(self.segmentation_colors, new_shape=(len(self.label_map), 3))
 
     def validate(self):
-        super(Segmentation, self).validate()
+        super().validate()
 
         try:
             report_error = ""
@@ -131,15 +128,14 @@ class Segmentation(MetricAnalysis):
                 break
 
     def top_n(self, n=10):
+        if n > self.size_dataset:
+            warnings.warn("value n is greater than the size of the dataset, it will be reduced to the size of the dataset")
+            n = self.size_dataset
+
         cm_info = OrderedDict()
 
         for name, cm in self.confusion_matrix.items():
-            value = 0
-            for i in range(len(cm)):
-                for j in range(len(cm)):
-                    if i != j:
-                        value += cm[i][j]
-            cm_info[name] = value
+            cm_info[name] = np.sum(cm) - np.sum(np.diag(cm))
 
         sort_key = sorted(cm_info, key=lambda k: (cm_info[k]), reverse=True)[:n]
 
@@ -156,15 +152,15 @@ class Segmentation(MetricAnalysis):
                 break
 
     @staticmethod
-    def multiple_visualize_data(objs):
+    def multiple_visualize_data(set_task):
 
-        for name in objs[0].identifier:
+        for name in set_task[0].identifier:
             prediction = []
 
-            if not objs[1].identifier.get('name', []):
-                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+            if not set_task[1].identifier.get(name):
+                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
             else:
-                for i, obj in enumerate(objs):
+                for i, obj in enumerate(set_task):
                     mask = np.load(obj.mask + obj.predicted_mask[name], allow_pickle=True)
                     image = cv2.imread(obj.picture_directory + name)
                     prediction.append(image.copy())
@@ -172,7 +168,6 @@ class Segmentation(MetricAnalysis):
                     prediction[i] = obj.plot_image(prediction[i], mask)
 
                 for i in range(len(prediction)):
-                    print(i)
                     cv2.imshow(str(i), prediction[i])
                 key = cv2.waitKey(0)
                 cv2.destroyAllWindows()
@@ -180,32 +175,29 @@ class Segmentation(MetricAnalysis):
                     break
 
     @staticmethod
-    def multiple_top_n(objs, n=10):
+    def multiple_top_n(set_task, n=10):
+
         dist = OrderedDict()
 
-        for name in objs[0].identifier:
+        for name in set_task[0].identifier:
 
-            if not objs[1].identifier.get(name, []):
-                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+            if not set_task[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
             else:
-                length = len(objs[0].confusion_matrix[name])
-                a = np.ones(len(objs[0].confusion_matrix[name]))
-                b = np.ones(len(objs[1].confusion_matrix[name]))
 
-                for i in range(length):
-                    for j in range(length):
-                        if i == j:
-                            a[i] = objs[0].confusion_matrix[name][i][j]
-                            b[i] = objs[1].confusion_matrix[name][i][j]
+                dist[name] = np.linalg.norm(np.diag(set_task[0].confusion_matrix[name]) - np.diag(set_task[1].confusion_matrix[name]))
 
-                dist[name] = np.linalg.norm(a - b)
+        if n > len(dist):
+            warnings.warn("""the n value is greater than the number of identical objects in both files, 
+                            it will be reduced to the size of the dataset""")
+            n = len(dist)
 
         sort_key = sorted(dist, key=lambda k: (dist[k]), reverse=True)[:n]
 
         for name in sort_key:
-            image = cv2.imread(objs[0].picture_directory + name)
+            image = cv2.imread(set_task[0].picture_directory + name)
             prediction = []
-            for i, obj in enumerate(objs):
+            for i, obj in enumerate(set_task):
                 print(obj.mask)
                 mask = np.load(obj.mask + obj.predicted_mask[name], allow_pickle=True)
 

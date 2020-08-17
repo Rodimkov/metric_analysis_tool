@@ -5,13 +5,11 @@ import numpy as np
 from collections import OrderedDict
 import warnings
 
-warnings.simplefilter('error', UserWarning)
-
 
 class Detection(MetricAnalysis):
 
-    def __init__(self, data, file, directory, mask):
-        super(Detection, self).__init__(data, file, directory, mask)
+    def __init__(self, type_task, data, file_name, directory, mask):
+        super().__init__(type_task, data, file_name, directory, mask)
 
         self.identifier = OrderedDict()
         self.index = []
@@ -26,7 +24,7 @@ class Detection(MetricAnalysis):
         self.parser()
 
     def validate(self):
-        super(Detection, self).validate()
+        super().validate()
 
         try:
             report_error = []
@@ -68,12 +66,12 @@ class Detection(MetricAnalysis):
             raise SystemExit(1)
 
     def parser(self):
-        super(Detection, self).parser()
+        super().parser()
 
         for i, report in enumerate(self.reports):
-            self.identifier[report.get("identifier")] = report.get("identifier")
-            self.index.append(report.get("identifier"))
-            self.per_class_result[report.get("identifier")] = report.get("per_class_result")
+            self.identifier[report["identifier"]] = report["identifier"]
+            self.index.append(report["identifier"])
+            self.per_class_result[report["identifier"]] = report["per_class_result"]
 
         for name, info_class in self.per_class_result.items():
             pb = OrderedDict()
@@ -83,11 +81,11 @@ class Detection(MetricAnalysis):
             mean_ap = []
 
             for key, value in info_class.items():
-                pb[key] = value.get("prediction_boxes")
-                ab[key] = value.get("annotation_boxes")
-                ps[key] = value.get("prediction_scores")
-                ap[key] = value.get("average_precision")
-                mean_ap.append(value.get("average_precision"))
+                pb[key] = value["prediction_boxes"]
+                ab[key] = value["annotation_boxes"]
+                ps[key] = value["prediction_scores"]
+                ap[key] = value["average_precision"]
+                mean_ap.append(value["average_precision"])
 
             self.prediction_boxes[name] = pb
             self.annotation_boxes[name] = ab
@@ -120,7 +118,7 @@ class Detection(MetricAnalysis):
         """
 
         if n > self.size_dataset:
-            print("value n is greater than the size of the dataset, it will be reduced to the size of the dataset")
+            warnings.warn("value n is greater than the size of the dataset, it will be reduced to the size of the dataset")
             n = self.size_dataset
 
         without_correct_answers = OrderedDict()
@@ -298,23 +296,23 @@ class Detection(MetricAnalysis):
                 break
 
     @staticmethod
-    def multiple_visualize_data(objs):
+    def multiple_visualize_data(set_task):
         threshold_scores = 0.5
-        color = np.zeros((len(objs), 1, 3), np.uint8)
+        color = np.zeros((len(set_task), 1, 3), np.uint8)
 
-        for i in range(len(objs)):
-            color[i] = np.array([i * int(180 / (len(objs))), 255, 255])
+        for i in range(len(set_task)):
+            color[i] = np.array([i * int(180 / (len(set_task))), 255, 255])
 
         color = cv2.cvtColor(color, cv2.COLOR_HSV2BGR)
-        color = np.resize(color, new_shape=(len(objs), 3))
+        color = np.resize(color, new_shape=(len(set_task), 3))
 
-        for name in objs[0].identifier:
+        for name in set_task[0].identifier:
 
-            if not objs[1].identifier.get(name, []):
-                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+            if not set_task[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
             else:
-                image = cv2.imread(objs[0].picture_directory + name)
-                for i, obj in enumerate(objs):
+                image = cv2.imread(set_task[0].picture_directory + name)
+                for i, obj in enumerate(set_task):
                     obj.marking_predition(image, name, tuple(color[i]), threshold_scores)
 
                 # objs[0].marking_annotation(image, name, (0,0,255))
@@ -358,23 +356,23 @@ class Detection(MetricAnalysis):
         )
 
     @staticmethod
-    def multiple_top_n(objs, n=10):
+    def multiple_top_n(set_task, n=10):
         result = OrderedDict()
         without_answers = OrderedDict()
-        for name, report in list(objs[0].per_class_result.items()):
+        for name, report in list(set_task[0].per_class_result.items()):
             flag = False
             value = []
 
-            if not objs[1].identifier.get(name, []):
-                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+            if not set_task[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
             else:
                 for key in report.keys():
                     box = []
-                    for obj in objs:
+                    for obj in set_task:
                         count = np.sum(np.array(obj.prediction_scores[name][key]) > 0.3)
                         box.append(obj.prediction_boxes[name][key][:count])
 
-                    similarity_matrix = objs[0].calculate_similarity_matrix(box[0], box[1])
+                    similarity_matrix = set_task[0].calculate_similarity_matrix(box[0], box[1])
 
                     if similarity_matrix.size != 0:
                         flag = True
@@ -387,18 +385,23 @@ class Detection(MetricAnalysis):
                 else:
                     without_answers[name] = name
 
+        if n > len(result):
+            warnings.warn("""the n value is greater than the number of identical objects in both files, 
+                            it will be reduced to the size of the dataset""")
+            n = len(result)
+
         sort_key = sorted(result, key=lambda k: (result[k]), reverse=False)[:n]
 
-        color = np.zeros((len(objs), 1, 3), np.uint8)
+        color = np.zeros((len(set_task), 1, 3), np.uint8)
 
-        for i in range(len(objs)):
-            color[i] = np.array([i * int(180 / (len(objs))), 255, 255])
+        for i in range(len(set_task)):
+            color[i] = np.array([i * int(180 / (len(set_task))), 255, 255])
 
         color = cv2.cvtColor(color, cv2.COLOR_HSV2BGR)
-        color = np.resize(color, new_shape=(len(objs), 3))
+        color = np.resize(color, new_shape=(len(set_task), 3))
 
         for name in without_answers:
-            image = cv2.imread(objs[0].picture_directory + name)
+            image = cv2.imread(set_task[0].picture_directory + name)
 
             cv2.imshow(name, image)
             key = cv2.waitKey(0)
@@ -407,9 +410,9 @@ class Detection(MetricAnalysis):
                 break
 
         for name in sort_key:
-            image = cv2.imread(objs[0].picture_directory + name)
+            image = cv2.imread(set_task[0].picture_directory + name)
 
-            for i, obj in enumerate(objs):
+            for i, obj in enumerate(set_task):
                 obj.marking_predition(image, name, tuple(color[i]), 0.3)
 
             cv2.imshow(name, image)

@@ -5,13 +5,11 @@ from metric_analysis import MetricAnalysis
 from collections import OrderedDict
 import warnings
 
-warnings.simplefilter('error', UserWarning)
-
 
 class Classification(MetricAnalysis):
 
-    def __init__(self, data, file, directory, mask):
-        super(Classification, self).__init__(data, file, directory, mask)
+    def __init__(self, type_task, data, file_name, directory, mask):
+        super().__init__(type_task, data, file_name, directory, mask)
 
         self.identifier = OrderedDict()
         self.index = []
@@ -20,88 +18,78 @@ class Classification(MetricAnalysis):
         self.prediction_scores = OrderedDict()
         self.accuracy_result = OrderedDict()
 
-        # self.validate()
+        self.validate()
         self.parser()
 
     def validate(self):
-        super(Classification, self).validate()
+        super().validate()
 
-        try:
-            report_error = []
-            report_obj = self.data.get("report")[0]
+        report_error = []
+        report_obj = self.data.get("report")[0]
 
-            if not 'identifier' in report_obj:
-                report_error.append('identifier')
+        if not 'identifier' in report_obj:
+            report_error.append('identifier')
 
-            if not 'prediction_label' in report_obj:
-                report_error.append('prediction_label')
+        if not 'prediction_label' in report_obj:
+            report_error.append('prediction_label')
 
-            if not 'annotation_label' in report_obj:
-                report_error.append('annotation_label')
+        if not 'annotation_label' in report_obj:
+            report_error.append('annotation_label')
 
-            if not 'prediction_scores' in report_obj:
-                report_error.append('prediction_scores')
+        if not 'prediction_scores' in report_obj:
+            report_error.append('prediction_scores')
 
-            if not 'accuracy_result' in report_obj:
-                report_error.append('accuracy_result')
+        if not 'accuracy_result' in report_obj:
+            report_error.append('accuracy_result')
 
-            if report_error:
-                report_error = ', '.join(report_error)
-                raise Exception(report_error)
+        if report_error:
+            report_error = ', '.join(report_error)
+            raise KeyError("there are no keys in the file <json>: {}".format(report_error))
 
-        except Exception as e:
-            print("there are no keys in the file <json>: {}".format(e))
-            raise SystemExit(1)
+        report_error = []
+        report_obj = self.data.get("report")[0]
 
-        try:
-            report_error = []
-            report_obj = self.data.get("report")[0]
+        value = report_obj['identifier']
 
-            value = report_obj['identifier']
+        if not isinstance(value, str):
+            report_error.append('identifier')
 
-            if not isinstance(value, str):
-                report_error.append('identifier')
+        value = report_obj['prediction_label']
+        if not isinstance(value, int):
+            report_error.append('prediction_label')
 
-            value = report_obj['prediction_label']
-            if not isinstance(value, int):
-                report_error.append('prediction_label')
+        value = report_obj['annotation_label']
+        if not isinstance(value, int):
+            report_error.append('annotation_label')
 
-            value = report_obj['annotation_label']
-            if not isinstance(value, int):
-                report_error.append('annotation_label')
+        value = report_obj['prediction_scores']
 
-            value = report_obj['prediction_scores']
+        if not isinstance(value, list):
+            report_error.append('prediction_scores')
 
-            if (not isinstance(value, list)) or (not value):
-                report_error.append('prediction_scores')
+        value = report_obj['accuracy_result']
+        if not isinstance(value, float):
+            report_error.append('accuracy_result')
 
-            value = report_obj['accuracy_result']
-            if not isinstance(value, float):
-                report_error.append('accuracy_result')
-
-            if report_error:
-                report_error = ', '.join(report_error)
-                raise Exception(report_error)
-
-        except Exception as e:
-            print("invalid value by key: {} ".format(e))
-            raise SystemExit(1)
+        if report_error:
+            report_error = ', '.join(report_error)
+            raise KeyError("there are no keys in the file <json>: {}".format(report_error))
 
     def parser(self):
-        super(Classification, self).parser()
+        super().parser()
 
         for i, report in enumerate(self.reports):
-            self.identifier[report.get("identifier")] = report.get("identifier")
-            self.index.append(report.get("identifier"))
-            self.prediction_label[report.get("identifier")] = report.get("prediction_label")
-            self.annotation_label[report.get("identifier")] = report.get("annotation_label")
-            self.prediction_scores[report.get("identifier")] = report.get("prediction_scores")
-            self.accuracy_result[report.get("identifier")] = report.get("accuracy@top1_result")
-            # self.accuracy_result[report.get("identifier")] = report.get("accuracy_result")
+            self.identifier[report["identifier"]] = report["identifier"]
+            self.index.append(report["identifier"])
+            self.prediction_label[report["identifier"]] = report["prediction_label"]
+            self.annotation_label[report["identifier"]] = report["annotation_label"]
+            self.prediction_scores[report["identifier"]] = report["prediction_scores"]
+            #self.accuracy_result[report["identifier"]] = report["accuracy@top1_result"]
+            self.accuracy_result[report["identifier"]] = report["accuracy_result"]
 
     def top_n(self, n=10):
         if n > self.size_dataset:
-            print("value n is greater than the size of the dataset, it will be reduced to the size of the dataset")
+            warnings.warn("value n is greater than the size of the dataset, it will be reduced to the size of the dataset")
             n = self.size_dataset
 
         position = OrderedDict()
@@ -109,7 +97,9 @@ class Classification(MetricAnalysis):
 
         for name in self.identifier:
             sort_index = np.argsort(self.prediction_scores[name])[::-1]
-            position_prediction = -np.where(sort_index == self.annotation_label[name])[0][0]
+            array_with_index = np.where(sort_index == self.annotation_label[name])
+            value_with_index = array_with_index[0][0]
+            position_prediction = -value_with_index
             position[name] = position_prediction
             scores[name] = self.prediction_scores[name][self.annotation_label[name]]
 
@@ -185,7 +175,6 @@ class Classification(MetricAnalysis):
         self.plot_confusion_matrix()
 
     def visualize_data(self):
-
         for name in self.identifier:
 
             pred_label = self.label_map.get(str(self.prediction_label[name]))
@@ -201,61 +190,65 @@ class Classification(MetricAnalysis):
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
-                print()
                 break
 
     @staticmethod
-    def multiple_visualize_data(objs):
-        for name in list(objs[0].identifier.keys()):
+    def multiple_visualize_data(set_task):
+        for name in list(set_task[0].identifier.keys()):
 
-            if not objs[1].identifier.get(name, []):
-                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+            if not set_task[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
             else:
                 print("image name:", name)
 
-                for obj in objs:
+                for obj in set_task:
                     label = obj.label_map.get(str(obj.prediction_label[name]))
                     print("prediction label:", label,
                           "prediction scores:", np.max(obj.prediction_scores[name]))
 
-                image = cv2.imread(objs[0].picture_directory + name)
+                image = cv2.imread(set_task[0].picture_directory + name)
                 cv2.imshow(name, image)
                 key = cv2.waitKey(0)
                 cv2.destroyAllWindows()
                 if key == 27:
-                    print()
                     break
 
     @staticmethod
-    def multiple_top_n(objs, n=10):
-
+    def multiple_top_n(set_task, n=10):
         position = OrderedDict()
         scores = OrderedDict()
 
-        for name in objs[0].identifier:
-            if not objs[1].identifier.get(name, []):
-                warnings.warn("in file {} no image {}".format(objs[1].file, name))
+        for name in set_task[0].identifier:
+            if not set_task[1].identifier.get(name, []):
+                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
             else:
-                sort_index = np.argsort(objs[1].prediction_scores[name])[::-1]
-                position_prediction = -np.where(sort_index == objs[0].prediction_label[name])[0][0]
-                position[name] = position_prediction
-                scores[name] = objs[1].prediction_scores[name][objs[0].prediction_label[name]]
+                sort_index = np.argsort(set_task[1].prediction_scores[name])[::-1]
 
-        sort_key = sorted(objs[0].identifier, key=lambda k: (position[k], scores[k]))[:n]
+                array_with_index = np.where(sort_index == set_task[0].prediction_label[name])
+                value_with_index = array_with_index[0][0]
+                position_prediction = -value_with_index
+                position[name] = position_prediction
+                scores[name] = set_task[1].prediction_scores[name][set_task[0].prediction_label[name]]
+
+        if n > len(position):
+            warnings.warn("""the n value is greater than the number of identical objects in both files, 
+                            it will be reduced to the size of the dataset""")
+            n = len(position)
+
+        sort_key = sorted(set_task[0].identifier, key=lambda k: (position[k], scores[k]))[:n]
 
         for name in sort_key:
             print("image name:", name)
 
-            label_0 = objs[0].label_map.get(str(objs[0].prediction_label[name]))
-            label_1 = objs[1].label_map.get(str(objs[1].prediction_label[name]))
+            label_0 = set_task[0].label_map.get(str(set_task[0].prediction_label[name]))
+            label_1 = set_task[1].label_map.get(str(set_task[1].prediction_label[name]))
             print("prediction label 0:", label_0,
                   "prediction label 1:", label_1,
-                  "prediction scores:", np.max(objs[0].prediction_scores[name]))
+                  "prediction scores:", np.max(set_task[0].prediction_scores[name]))
 
-            image = cv2.imread(objs[0].picture_directory + name)
+            image = cv2.imread(set_task[0].picture_directory + name)
             cv2.imshow(name, image)
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
-                print()
                 break

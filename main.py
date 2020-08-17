@@ -3,7 +3,7 @@ import os
 import task_factory
 import json
 import orjson
-
+import GUI.main_gui as mg
 # This file is a temporary solution and contains inaccuracies.
 # As a result, it is not written optimally
 
@@ -60,31 +60,44 @@ def read_data(json_file):
 def main():
     parser = create_parser()
     namespace = parser.parse_args()
-    if len(namespace.file) == 1:
-        data, type_task = read_data(namespace.file[0])
-        try:
-            task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0], namespace.directory, namespace.mask[0])
-        except TypeError:
-            task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0], namespace.directory, namespace.mask)
+    flag = True
+    if flag:
+        if len(namespace.file) == 1:
+            data, type_task = read_data(namespace.file[0])
+            try:
+                task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0], namespace.directory, namespace.mask[0])
+            except TypeError:
+                task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0], namespace.directory, namespace.mask)
 
 
-        task.visualize_data()
-        task.metrics()
-        task.top_n()
+            task.visualize_data()
+            #task.metrics()
+            task.top_n()
+
+        else:
+            task = []
+            for i in range(len(namespace.file)):
+                data, type_task = read_data(namespace.file[i])
+                try:
+                    task.append(task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[i], namespace.directory,
+                                                                        namespace.mask[i]))
+                except TypeError:
+                    task.append(task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[i], namespace.directory,
+                                                                        namespace.mask))
+
+            task[0].multiple_visualize_data(task)
+            task[0].multiple_top_n(task)
 
     else:
-        task = []
-        for i in range(len(namespace.file)):
-            data, type_task = read_data(namespace.file[i])
-            try:
-                task.append(task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[i], namespace.directory,
-                                                                    namespace.mask[i]))
-            except TypeError:
-                task.append(task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[i], namespace.directory,
-                                                                    namespace.mask))
+        data, type_task = read_data(namespace.file[0])
+        try:
+            task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0],
+                                                                    namespace.directory, namespace.mask[0])
+        except TypeError:
+            task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0],
+                                                                    namespace.directory, namespace.mask)
 
-        task[0].multiple_visualize_data(task)
-        task[0].multiple_top_n(task)
+        mg.MainMenu(task)
 
 
 
