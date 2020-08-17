@@ -17,6 +17,7 @@ class Segmentation(MetricAnalysis):
         self.confusion_matrix = OrderedDict()
         self.predicted_mask = OrderedDict()
         self.segmentation_colors = None
+        self.argmax_data = False
 
         self.validate()
         self.parser()
@@ -31,7 +32,10 @@ class Segmentation(MetricAnalysis):
             self.predicted_mask[report["identifier"]] = name
             self.confusion_matrix[report["identifier"]] = report["confusion_matrix"]
 
+
+
         if 'segmentation_colors' in self.dataset_meta.keys():
+            self.argmax_data = True
             self.segmentation_colors = np.array(self.data.get("dataset_meta").get('segmentation_colors'))
         elif len(self.label_map) > 20:
             self.segmentation_colors = np.random.randint(180, size=(len(self.label_map), 3))
@@ -93,8 +97,8 @@ class Segmentation(MetricAnalysis):
         self.plot_confusion_matrix()
 
     def plot_image(self, image, mask):
-        mask = np.resize(mask, (1024, 2048))
-        if len(mask.shape) == 3:
+        #mask = np.resize(mask, (1024, 2048))
+        if not self.argmax_data:
             mask = np.argmax(mask, axis=0).astype(np.uint8)
         mask = mask.astype(np.uint8)
 
@@ -129,7 +133,8 @@ class Segmentation(MetricAnalysis):
 
     def top_n(self, n=10):
         if n > self.size_dataset:
-            warnings.warn("value n is greater than the size of the dataset, it will be reduced to the size of the dataset")
+            warnings.warn("""value n is greater than the size of the dataset,
+                             it will be reduced to the size of the dataset""")
             n = self.size_dataset
 
         cm_info = OrderedDict()
@@ -160,12 +165,12 @@ class Segmentation(MetricAnalysis):
             if not set_task[1].identifier.get(name):
                 warnings.warn("in file {} no image {}".format(set_task[1].file, name))
             else:
-                for i, obj in enumerate(set_task):
-                    mask = np.load(obj.mask + obj.predicted_mask[name], allow_pickle=True)
-                    image = cv2.imread(obj.picture_directory + name)
+                for i, task in enumerate(set_task):
+                    mask = np.load(task.mask + task.predicted_mask[name], allow_pickle=True)
+                    image = cv2.imread(task.picture_directory + name)
                     prediction.append(image.copy())
 
-                    prediction[i] = obj.plot_image(prediction[i], mask)
+                    prediction[i] = task.plot_image(prediction[i], mask)
 
                 for i in range(len(prediction)):
                     cv2.imshow(str(i), prediction[i])
@@ -197,11 +202,10 @@ class Segmentation(MetricAnalysis):
         for name in sort_key:
             image = cv2.imread(set_task[0].picture_directory + name)
             prediction = []
-            for i, obj in enumerate(set_task):
-                print(obj.mask)
-                mask = np.load(obj.mask + obj.predicted_mask[name], allow_pickle=True)
+            for i, task in enumerate(set_task):
+                mask = np.load(task.mask + task.predicted_mask[name], allow_pickle=True)
 
-                prediction.append(obj.plot_image(image.copy(), mask))
+                prediction.append(task.plot_image(image.copy(), mask))
 
                 prediction[i] = cv2.resize(prediction[i],
                                            (int(prediction[i].shape[1] / 3), int(prediction[i].shape[0] / 3)))

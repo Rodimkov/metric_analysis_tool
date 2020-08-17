@@ -118,7 +118,8 @@ class Detection(MetricAnalysis):
         """
 
         if n > self.size_dataset:
-            warnings.warn("value n is greater than the size of the dataset, it will be reduced to the size of the dataset")
+            warnings.warn("""value n is greater than the size of the dataset,
+                             it will be reduced to the size of the dataset""")
             n = self.size_dataset
 
         without_correct_answers = OrderedDict()
@@ -312,10 +313,8 @@ class Detection(MetricAnalysis):
                 warnings.warn("in file {} no image {}".format(set_task[1].file, name))
             else:
                 image = cv2.imread(set_task[0].picture_directory + name)
-                for i, obj in enumerate(set_task):
-                    obj.marking_predition(image, name, tuple(color[i]), threshold_scores)
-
-                # objs[0].marking_annotation(image, name, (0,0,255))
+                for i, task in enumerate(set_task):
+                    task.marking_predition(image, name, tuple(color[i]), threshold_scores)
 
                 cv2.imshow(name, image)
                 key = cv2.waitKey(0)
@@ -368,9 +367,9 @@ class Detection(MetricAnalysis):
             else:
                 for key in report.keys():
                     box = []
-                    for obj in set_task:
-                        count = np.sum(np.array(obj.prediction_scores[name][key]) > 0.3)
-                        box.append(obj.prediction_boxes[name][key][:count])
+                    for task in set_task:
+                        count = np.sum(np.array(task.prediction_scores[name][key]) > 0.3)
+                        box.append(task.prediction_boxes[name][key][:count])
 
                     similarity_matrix = set_task[0].calculate_similarity_matrix(box[0], box[1])
 
@@ -412,8 +411,8 @@ class Detection(MetricAnalysis):
         for name in sort_key:
             image = cv2.imread(set_task[0].picture_directory + name)
 
-            for i, obj in enumerate(set_task):
-                obj.marking_predition(image, name, tuple(color[i]), 0.3)
+            for i, task in enumerate(set_task):
+                task.marking_predition(image, name, tuple(color[i]), 0.3)
 
             cv2.imshow(name, image)
             key = cv2.waitKey(0)

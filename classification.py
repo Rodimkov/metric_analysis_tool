@@ -89,7 +89,8 @@ class Classification(MetricAnalysis):
 
     def top_n(self, n=10):
         if n > self.size_dataset:
-            warnings.warn("value n is greater than the size of the dataset, it will be reduced to the size of the dataset")
+            warnings.warn("""value n is greater than the size of the dataset,
+                             it will be reduced to the size of the dataset""")
             n = self.size_dataset
 
         position = OrderedDict()
@@ -201,10 +202,10 @@ class Classification(MetricAnalysis):
             else:
                 print("image name:", name)
 
-                for obj in set_task:
-                    label = obj.label_map.get(str(obj.prediction_label[name]))
+                for task in set_task:
+                    label = task.label_map.get(str(task.prediction_label[name]))
                     print("prediction label:", label,
-                          "prediction scores:", np.max(obj.prediction_scores[name]))
+                          "prediction scores:", np.max(task.prediction_scores[name]))
 
                 image = cv2.imread(set_task[0].picture_directory + name)
                 cv2.imshow(name, image)
