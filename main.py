@@ -60,7 +60,7 @@ def read_data(json_file):
 def main():
     parser = create_parser()
     namespace = parser.parse_args()
-    flag = True
+    flag = False
     if flag:
         if len(namespace.file) == 1:
             data, type_task = read_data(namespace.file[0])

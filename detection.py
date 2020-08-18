@@ -97,7 +97,7 @@ class Detection(MetricAnalysis):
             else:
                 self.average_precision_picture[name] = np.nan
 
-    def top_n(self, n=10):
+    def _top_n(self, n=10):
         """Highlighting the top worst objects in terms of predictions
         This tool show four different types of "bad" objects:
 
@@ -158,68 +158,10 @@ class Detection(MetricAnalysis):
         sort_precision = sorted(precision, key=lambda k: (precision[k]))[:n]
         sort_average_precision = sorted(average_precision_score, key=lambda k: (average_precision_score[k]))[:n]
 
-        if without_correct_answers:
-            print("pictures without the correct answer, but annotated")
-            for name in without_correct_answers:
-                image = cv2.imread(self.picture_directory + self.identifier[name])
+        return sort_precision
 
-                self.marking_predition(image, name, (255, 0, 0), 0.3)
-                self.marking_annotation(image, name, (0, 0, 255))
-
-                print("picture name: ", self.identifier[name])
-                cv2.imshow(self.identifier[name], image)
-                key = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                if key == 27:
-                    break
-        else:
-            print('no objects without correct answers')
-
-        print("worst based on the metric: 'precision'")
-        for name in sort_precision:
-            image = cv2.imread(self.picture_directory + self.identifier[name])
-
-            self.marking_predition(image, name, (255, 0, 0), 0.3)
-            self.marking_annotation(image, name, (0, 0, 255))
-
-            print("picture name: ", self.identifier[name])
-            cv2.imshow(self.identifier[name], image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
-
-        print("worst based on the metric: 'average precision'")
-        for name in sort_average_precision:
-            image = cv2.imread(self.picture_directory + self.identifier[name])
-
-            self.marking_predition(image, name, (255, 0, 0), 0.3)
-            self.marking_annotation(image, name, (0, 0, 255))
-
-            print("picture name: ", self.identifier[name])
-            cv2.imshow(self.identifier[name], image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
-
-        print("pictures without annotation")
-        for name in without_annotation:
-            image = cv2.imread(self.picture_directory + self.identifier[name])
-
-            self.marking_predition(image, name, (255, 0, 0), 0.3)
-            self.marking_annotation(image, name, (0, 0, 255))
-
-            print("picture name: ", self.identifier[name])
-            cv2.imshow(self.identifier[name], image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
-
-    def plot_average_precision_changes(self, k=100):
+    def _plot_average_precision_changes(self, ax, k=100):
         precision_change = []
-
         precision = list(self.average_precision_picture.values())
 
         for i in range(int(k / 2), int(len(precision) - int(k / 2))):
@@ -227,17 +169,13 @@ class Detection(MetricAnalysis):
             precision_change.append(value)
         x_range = range(int(k / 2), len(precision_change) + int(k / 2))
 
-        _, ax = plt.subplots(figsize=(8, 6))
         ax.set_title("Change average precision in the process of predicting results")
 
         ax.set_xlabel("image number")
         ax.set_ylabel("average precision")
 
         ax.plot(x_range, precision_change)
-        plt.show()
-
-    def metrics(self):
-        self.plot_average_precision_changes()
+        return ax
 
     @staticmethod
     def draw_boxes(image, boxes, label_class, color=(255, 255, 255), thickness=2):
@@ -282,23 +220,15 @@ class Detection(MetricAnalysis):
 
         return image
 
-    def visualize_data(self):
-        threshold_scores = 0.5
-        for name in self.identifier:
-            image = cv2.imread(self.picture_directory + name)
+    def _visualize_data(self, image, name, threshold_scores):
 
-            self.marking_predition(image, name, (255, 0, 0), threshold_scores)
-            self.marking_annotation(image, name, (0, 0, 255))
+        self.marking_predition(image, name, (255, 0, 0), threshold_scores)
+        self.marking_annotation(image, name, (0, 0, 255))
 
-            cv2.imshow(name, image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
+        return image
 
     @staticmethod
-    def multiple_visualize_data(set_task):
-        threshold_scores = 0.5
+    def _multiple_visualize_data(image, set_task, name, threshold_scores):
         color = np.zeros((len(set_task), 1, 3), np.uint8)
 
         for i in range(len(set_task)):
@@ -307,20 +237,13 @@ class Detection(MetricAnalysis):
         color = cv2.cvtColor(color, cv2.COLOR_HSV2BGR)
         color = np.resize(color, new_shape=(len(set_task), 3))
 
-        for name in set_task[0].identifier:
+        if not set_task[1].identifier.get(name, []):
+            warnings.warn("in file {} no image {}".format(set_task[1].file, name))
+        else:
+            for i, task in enumerate(set_task):
+                task.marking_predition(image, name, tuple(color[i]), threshold_scores)
 
-            if not set_task[1].identifier.get(name, []):
-                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
-            else:
-                image = cv2.imread(set_task[0].picture_directory + name)
-                for i, task in enumerate(set_task):
-                    task.marking_predition(image, name, tuple(color[i]), threshold_scores)
-
-                cv2.imshow(name, image)
-                key = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                if key == 27:
-                    break
+        return image
 
     @staticmethod
     def intersections(prediction_box, annotation_boxes):
@@ -355,7 +278,7 @@ class Detection(MetricAnalysis):
         )
 
     @staticmethod
-    def multiple_top_n(set_task, n=10):
+    def _multiple_top_n(set_task, n=10):
         result = OrderedDict()
         without_answers = OrderedDict()
         for name, report in list(set_task[0].per_class_result.items()):
@@ -399,23 +322,4 @@ class Detection(MetricAnalysis):
         color = cv2.cvtColor(color, cv2.COLOR_HSV2BGR)
         color = np.resize(color, new_shape=(len(set_task), 3))
 
-        for name in without_answers:
-            image = cv2.imread(set_task[0].picture_directory + name)
-
-            cv2.imshow(name, image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
-
-        for name in sort_key:
-            image = cv2.imread(set_task[0].picture_directory + name)
-
-            for i, task in enumerate(set_task):
-                task.marking_predition(image, name, tuple(color[i]), 0.3)
-
-            cv2.imshow(name, image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
+        return sort_key

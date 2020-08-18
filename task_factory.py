@@ -1,13 +1,13 @@
 import classification
 import detection
 import segmentation
-
+import gui_classification
 
 class MetricAnalysisFactory:
     @staticmethod
     def create_task(name, data, file_name, directory, mask):
         type_task = {
-            "classification": classification.Classification,
+            "classification": gui_classification.ChCl,
             "detection": detection.Detection,
             "segmentation": segmentation.Segmentation
         }

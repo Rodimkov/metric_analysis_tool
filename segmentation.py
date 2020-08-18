@@ -97,7 +97,6 @@ class Segmentation(MetricAnalysis):
         self.plot_confusion_matrix()
 
     def plot_image(self, image, mask):
-        #mask = np.resize(mask, (1024, 2048))
         if not self.argmax_data:
             mask = np.argmax(mask, axis=0).astype(np.uint8)
         mask = mask.astype(np.uint8)
@@ -118,8 +117,8 @@ class Segmentation(MetricAnalysis):
         return image
 
     def visualize_data(self):
-
-        for name in self.identifier:
+        pass
+        """for name in self.identifier:
             mask = np.load(self.mask + self.predicted_mask[name], allow_pickle=True)
             image = cv2.imread(self.picture_directory + name)
 
@@ -129,7 +128,7 @@ class Segmentation(MetricAnalysis):
             key = cv2.waitKey(0)
             cv2.destroyAllWindows()
             if key == 27:
-                break
+                break"""
 
     def top_n(self, n=10):
         if n > self.size_dataset:

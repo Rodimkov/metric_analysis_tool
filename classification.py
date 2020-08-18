@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 from metric_analysis import MetricAnalysis
 from collections import OrderedDict
 import warnings
+import tkinter as tk
+from PIL import Image, ImageTk
 
 
 class Classification(MetricAnalysis):
@@ -84,10 +86,10 @@ class Classification(MetricAnalysis):
             self.prediction_label[report["identifier"]] = report["prediction_label"]
             self.annotation_label[report["identifier"]] = report["annotation_label"]
             self.prediction_scores[report["identifier"]] = report["prediction_scores"]
-            #self.accuracy_result[report["identifier"]] = report["accuracy@top1_result"]
+            # self.accuracy_result[report["identifier"]] = report["accuracy@top1_result"]
             self.accuracy_result[report["identifier"]] = report["accuracy_result"]
 
-    def top_n(self, n=10):
+    def _top_n(self, n=10):
         if n > self.size_dataset:
             warnings.warn("""value n is greater than the size of the dataset,
                              it will be reduced to the size of the dataset""")
@@ -105,27 +107,9 @@ class Classification(MetricAnalysis):
             scores[name] = self.prediction_scores[name][self.annotation_label[name]]
 
         sort_key = sorted(self.identifier, key=lambda k: (position[k], scores[k]))[:n]
+        return sort_key
 
-        for name in sort_key:
-            pred_label = self.label_map.get(str(self.prediction_label[name]))
-            true_label = self.label_map.get(str(self.annotation_label[name]))
-            print("image name:", self.identifier[name],
-                  "\nprediction label:", pred_label,
-                  "annotation label:", true_label)
-            image = cv2.imread(self.picture_directory + self.identifier[name])
-            cv2.imshow(self.identifier[name], image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
-
-    def simple_metric(self):
-        from sklearn.metrics import classification_report
-
-        print(classification_report(list(self.annotation_label.values()), list(self.prediction_label.values()),
-                                    target_names=self.label_map.values()))
-
-    def plot_accuracy_changes(self, k=100):
+    def _plot_accuracy_changes(self, ax, k=100):
         accuracy_change = []
 
         accuracy = list(self.accuracy_result.values())
@@ -135,16 +119,15 @@ class Classification(MetricAnalysis):
             accuracy_change.append(value)
         x_range = range(int(k / 2), len(accuracy_change) + int(k / 2))
 
-        _, ax = plt.subplots(figsize=(8, 6))
         ax.set_title("Change accuracy in the process of predicting results")
 
         ax.set_xlabel("image number")
         ax.set_ylabel("accuracy")
 
         ax.plot(x_range, accuracy_change)
-        plt.show()
+        return ax
 
-    def plot_confusion_matrix(self):
+    def _plot_confusion_matrix(self, ax):
         from sklearn.metrics import confusion_matrix
         import seaborn as sns
 
@@ -160,15 +143,13 @@ class Classification(MetricAnalysis):
             for j in range(cm.shape[0]):
                 text[i, j] = "{0:.2f}%\n{1} / {2}".format(cm_prob[i, j], cm[i, j], cm_sum[i][0])
 
-        _, ax = plt.subplots(figsize=(8, 8))
-
         sns.heatmap(cm, cmap="YlGnBu", annot=text, fmt='', ax=ax)
 
         ax.set_title("Confusion matrix")
 
         ax.set_xlabel("prediction label")
         ax.set_ylabel("annotation label")
-        plt.show()
+        return ax
 
     def metrics(self):
         self.simple_metric()
@@ -194,28 +175,7 @@ class Classification(MetricAnalysis):
                 break
 
     @staticmethod
-    def multiple_visualize_data(set_task):
-        for name in list(set_task[0].identifier.keys()):
-
-            if not set_task[1].identifier.get(name, []):
-                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
-            else:
-                print("image name:", name)
-
-                for task in set_task:
-                    label = task.label_map.get(str(task.prediction_label[name]))
-                    print("prediction label:", label,
-                          "prediction scores:", np.max(task.prediction_scores[name]))
-
-                image = cv2.imread(set_task[0].picture_directory + name)
-                cv2.imshow(name, image)
-                key = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                if key == 27:
-                    break
-
-    @staticmethod
-    def multiple_top_n(set_task, n=10):
+    def _multiple_top_n(set_task, n=10):
         position = OrderedDict()
         scores = OrderedDict()
 
@@ -238,18 +198,4 @@ class Classification(MetricAnalysis):
 
         sort_key = sorted(set_task[0].identifier, key=lambda k: (position[k], scores[k]))[:n]
 
-        for name in sort_key:
-            print("image name:", name)
-
-            label_0 = set_task[0].label_map.get(str(set_task[0].prediction_label[name]))
-            label_1 = set_task[1].label_map.get(str(set_task[1].prediction_label[name]))
-            print("prediction label 0:", label_0,
-                  "prediction label 1:", label_1,
-                  "prediction scores:", np.max(set_task[0].prediction_scores[name]))
-
-            image = cv2.imread(set_task[0].picture_directory + name)
-            cv2.imshow(name, image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
+        return sort_key
