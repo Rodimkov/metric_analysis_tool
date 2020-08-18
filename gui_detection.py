@@ -39,23 +39,22 @@ class GUI(Detection):
 
     def set_threshold(self):
         self.threshold_scores = float(self.message.get())
-        print(self.threshold_scores)
         self.counter -= 1
         self.next()
 
     def info(self):
         name = self.index_image[self.counter]
 
-        tk.Label(self.frame_for_info, height=1, width=45, text=name).grid(row=0, column=0, padx=10, pady=10)
-        tk.Label(self.frame_for_info, height=1, width=45, text="threshold score").grid(row=1, column=0, padx=10,
+        tk.Label(self.frame_for_info, height=1, width=20, text=name).grid(row=0, column=1, padx=10, pady=10)
+        tk.Label(self.frame_for_info, height=1, width=20, text="threshold score").grid(row=1, column=0, padx=10,
                                                                                        pady=10)
 
         self.message = tk.StringVar()
-        message_entry = tk.Entry(self.frame_for_info, textvariable=self.message)
-        message_entry.grid(row=1, column=1, padx=10, pady=10)
+        message_entry = tk.Entry(self.frame_for_info, textvariable=self.message, width=7)
+        message_entry.grid(row=1, column=2, padx=5, pady=5)
 
         message_button = tk.Button(self.frame_for_info, text="Change value", command=self.set_threshold)
-        message_button.grid(row=2, column=1, padx=10, pady=10)
+        message_button.grid(row=2, column=1, padx=5, pady=5)
 
     def open_image(self):
         import os
@@ -248,10 +247,23 @@ class GUI(Detection):
         self.multiple_next()
 
     def multiple_top_n(self, set_task):
+        self.master = tk.Toplevel()
+
+        self.set_task = set_task
+
+        self.message = tk.StringVar()
+        message_entry = tk.Entry( self.master, textvariable=self.message)
+        message_entry.pack()
+
+        b_prev = tk.Button( self.master,  text="prev", command=self.new)
+        b_prev.pack()
+
+    def new(self):
+        self.param = float(self.message.get())
+        self.master.destroy()
         self.n = 10
         self.counter = -1
-        self.set_task = set_task
-        self.index_image = self.set_task[0]._multiple_top_n(set_task)
+        self.index_image = self.set_task[0]._multiple_top_n(self.set_task, self.param)
         self.master = tk.Toplevel()
         self.size = self.n
         self.master.title("Visualize data for {}".format(self.type_task))

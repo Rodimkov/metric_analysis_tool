@@ -278,7 +278,7 @@ class Detection(MetricAnalysis):
         )
 
     @staticmethod
-    def _multiple_top_n(set_task, n=10):
+    def _multiple_top_n(set_task, threshold_scores, n=10):
         result = OrderedDict()
         without_answers = OrderedDict()
         for name, report in list(set_task[0].per_class_result.items()):
@@ -291,7 +291,7 @@ class Detection(MetricAnalysis):
                 for key in report.keys():
                     box = []
                     for task in set_task:
-                        count = np.sum(np.array(task.prediction_scores[name][key]) > 0.3)
+                        count = np.sum(np.array(task.prediction_scores[name][key]) > threshold_scores)
                         box.append(task.prediction_boxes[name][key][:count])
 
                     similarity_matrix = set_task[0].calculate_similarity_matrix(box[0], box[1])

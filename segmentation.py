@@ -68,7 +68,7 @@ class Segmentation(MetricAnalysis):
             print("there are no keys in the file <json>: {}".format(e))
             raise SystemExit(1)
 
-    def plot_confusion_matrix(self):
+    def _plot_confusion_matrix(self, ax):
         import seaborn as sns
 
         cm_all = np.array(list(self.confusion_matrix.values()))
@@ -83,24 +83,18 @@ class Segmentation(MetricAnalysis):
             for j in range(cm.shape[0]):
                 text[i, j] = "{0:.2f}".format(cm_prob[i, j])
 
-        _, ax = plt.subplots(figsize=(8, 8))
-
         sns.heatmap(cm_prob, cmap="YlGnBu", annot=text, fmt='', ax=ax)
 
         ax.set_title("Confusion matrix")
 
         ax.set_xlabel("prediction label")
         ax.set_ylabel("annotation label")
-        plt.show()
-
-    def metrics(self):
-        self.plot_confusion_matrix()
+        return  ax
 
     def plot_image(self, image, mask):
         if not self.argmax_data:
             mask = np.argmax(mask, axis=0).astype(np.uint8)
         mask = mask.astype(np.uint8)
-
         image = cv2.resize(image, (mask.shape[1], mask.shape[0]))
 
         color_mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
@@ -116,21 +110,13 @@ class Segmentation(MetricAnalysis):
 
         return image
 
-    def visualize_data(self):
-        pass
-        """for name in self.identifier:
-            mask = np.load(self.mask + self.predicted_mask[name], allow_pickle=True)
-            image = cv2.imread(self.picture_directory + name)
+    def _visualize_data(self, image, mask):
 
-            image = self.plot_image(image, mask)
+        image = self.plot_image(image, mask)
+        return image
 
-            cv2.imshow(name, image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break"""
 
-    def top_n(self, n=10):
+    def _top_n(self, n=10):
         if n > self.size_dataset:
             warnings.warn("""value n is greater than the size of the dataset,
                              it will be reduced to the size of the dataset""")
@@ -143,43 +129,26 @@ class Segmentation(MetricAnalysis):
 
         sort_key = sorted(cm_info, key=lambda k: (cm_info[k]), reverse=True)[:n]
 
-        for name in sort_key:
-            mask = np.load(self.mask + self.predicted_mask[name], allow_pickle=True)
-            image = cv2.imread(self.picture_directory + name)
-
-            image = self.plot_image(image, mask)
-
-            cv2.imshow(name, image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
+        return sort_key
 
     @staticmethod
-    def multiple_visualize_data(set_task):
+    def _multiple_visualize_data(set_task, name):
+        print(name)
+        prediction = []
 
-        for name in set_task[0].identifier:
-            prediction = []
+        if not set_task[1].identifier.get(name):
+            warnings.warn("in file {} no image {}".format(set_task[1].file, name))
+        else:
+            for i, task in enumerate(set_task):
+                mask = np.load(task.mask + task.predicted_mask[name], allow_pickle=True)
+                image = cv2.imread(task.picture_directory + name)
+                prediction.append(image.copy())
+                prediction[i] = task.plot_image(prediction[i], mask)
 
-            if not set_task[1].identifier.get(name):
-                warnings.warn("in file {} no image {}".format(set_task[1].file, name))
-            else:
-                for i, task in enumerate(set_task):
-                    mask = np.load(task.mask + task.predicted_mask[name], allow_pickle=True)
-                    image = cv2.imread(task.picture_directory + name)
-                    prediction.append(image.copy())
-
-                    prediction[i] = task.plot_image(prediction[i], mask)
-
-                for i in range(len(prediction)):
-                    cv2.imshow(str(i), prediction[i])
-                key = cv2.waitKey(0)
-                cv2.destroyAllWindows()
-                if key == 27:
-                    break
+        return prediction
 
     @staticmethod
-    def multiple_top_n(set_task, n=10):
+    def _multiple_top_n(set_task, n=10):
 
         dist = OrderedDict()
 
@@ -198,20 +167,4 @@ class Segmentation(MetricAnalysis):
 
         sort_key = sorted(dist, key=lambda k: (dist[k]), reverse=True)[:n]
 
-        for name in sort_key:
-            image = cv2.imread(set_task[0].picture_directory + name)
-            prediction = []
-            for i, task in enumerate(set_task):
-                mask = np.load(task.mask + task.predicted_mask[name], allow_pickle=True)
-
-                prediction.append(task.plot_image(image.copy(), mask))
-
-                prediction[i] = cv2.resize(prediction[i],
-                                           (int(prediction[i].shape[1] / 3), int(prediction[i].shape[0] / 3)))
-
-            for i in range(len(prediction)):
-                cv2.imshow(str(i), prediction[i])
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
+        return sort_key
