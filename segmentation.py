@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import cv2
 import os
 from metric_analysis import MetricAnalysis
@@ -32,8 +31,6 @@ class Segmentation(MetricAnalysis):
             self.predicted_mask[report["identifier"]] = name
             self.confusion_matrix[report["identifier"]] = report["confusion_matrix"]
 
-
-
         if 'segmentation_colors' in self.dataset_meta.keys():
             self.argmax_data = True
             self.segmentation_colors = np.array(self.data.get("dataset_meta").get('segmentation_colors'))
@@ -50,23 +47,22 @@ class Segmentation(MetricAnalysis):
     def validate(self):
         super().validate()
 
-        try:
-            report_error = ""
-            report_obj = self.data.get("report")[0]
+        report_error = ""
+        report_obj = self.data.get("report")[0]
 
-            if not 'identifier' in report_obj:
-                report_error.append('identifier')
+        if not 'identifier' in report_obj:
+            report_error.append('identifier')
 
-            if not 'confusion_matrix' in report_obj:
-                report_error.append('confusion_matrix')
+        if not 'confusion_matrix' in report_obj:
+            report_error.append('confusion_matrix')
 
-            if report_error:
-                report_error = ', '.join(report_error)
-                raise Exception(report_error)
+        if report_error:
+            report_error = ', '.join(report_error)
+            raise Exception(report_error)
 
-        except Exception as e:
-            print("there are no keys in the file <json>: {}".format(e))
-            raise SystemExit(1)
+        if report_error:
+            report_error = ', '.join(report_error)
+            raise KeyError("there are no keys in the file <json>: {}".format(report_error))
 
     def _plot_confusion_matrix(self, ax):
         import seaborn as sns
@@ -89,7 +85,7 @@ class Segmentation(MetricAnalysis):
 
         ax.set_xlabel("prediction label")
         ax.set_ylabel("annotation label")
-        return  ax
+        return ax
 
     def plot_image(self, image, mask):
         if not self.argmax_data:
@@ -115,7 +111,6 @@ class Segmentation(MetricAnalysis):
         image = self.plot_image(image, mask)
         return image
 
-
     def _top_n(self, n=10):
         if n > self.size_dataset:
             warnings.warn("""value n is greater than the size of the dataset,
@@ -133,7 +128,6 @@ class Segmentation(MetricAnalysis):
 
     @staticmethod
     def _multiple_visualize_data(set_task, name):
-        print(name)
         prediction = []
 
         if not set_task[1].identifier.get(name):
@@ -158,7 +152,8 @@ class Segmentation(MetricAnalysis):
                 warnings.warn("in file {} no image {}".format(set_task[1].file, name))
             else:
 
-                dist[name] = np.linalg.norm(np.diag(set_task[0].confusion_matrix[name]) - np.diag(set_task[1].confusion_matrix[name]))
+                dist[name] = np.linalg.norm(
+                    np.diag(set_task[0].confusion_matrix[name]) - np.diag(set_task[1].confusion_matrix[name]))
 
         if n > len(dist):
             warnings.warn("""the n value is greater than the number of identical objects in both files, 

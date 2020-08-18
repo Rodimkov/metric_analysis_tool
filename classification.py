@@ -1,11 +1,8 @@
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 from metric_analysis import MetricAnalysis
 from collections import OrderedDict
 import warnings
-import tkinter as tk
-from PIL import Image, ImageTk
 
 
 class Classification(MetricAnalysis):
@@ -143,36 +140,13 @@ class Classification(MetricAnalysis):
             for j in range(cm.shape[0]):
                 text[i, j] = "{0:.2f}%\n{1} / {2}".format(cm_prob[i, j], cm[i, j], cm_sum[i][0])
 
-        sns.heatmap(cm, cmap="YlGnBu", annot=text, fmt='', ax=ax)
+        sns.heatmap(cm, cmap="YlGnBu", annot=text, fmt='', ax=ax, cbar=False)
 
         ax.set_title("Confusion matrix")
 
         ax.set_xlabel("prediction label")
         ax.set_ylabel("annotation label")
         return ax
-
-    def metrics(self):
-        self.simple_metric()
-        self.plot_accuracy_changes()
-        self.plot_confusion_matrix()
-
-    def visualize_data(self):
-        for name in self.identifier:
-
-            pred_label = self.label_map.get(str(self.prediction_label[name]))
-            true_label = self.label_map.get(str(self.annotation_label[name]))
-
-            print("image name:", self.identifier[name],
-                  "\nprediction label:", pred_label,
-                  "annotation label:", true_label,
-                  "prediction scores:", np.max(self.prediction_scores[name]))
-
-            image = cv2.imread(self.picture_directory + name)
-            cv2.imshow(name, image)
-            key = cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if key == 27:
-                break
 
     @staticmethod
     def _multiple_top_n(set_task, n=10):

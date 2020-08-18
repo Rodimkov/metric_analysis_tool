@@ -17,8 +17,9 @@ class GUI(Detection):
     def visualize_data(self):
         self.counter = -1
         self.index_image = self.index
-        self.master = tk.Toplevel()
         self.size = self.size_dataset
+
+        self.master = tk.Toplevel()
         self.master.title("Visualize data for {}".format(self.type_task))
 
         self.frame_for_image = tk.Frame(self.master)
@@ -64,6 +65,31 @@ class GUI(Detection):
         self.counter = np.where(np.array(self.index) == file_name)[0][0] - 1
         self.next()
 
+    def top_n(self):
+        self.counter = -1
+        self.size = 10
+
+        self.master = tk.Toplevel()
+        self.master.title("Top N for {}".format(self.type_task))
+
+        self.index_image = self._top_n(n=self.size)
+
+        self.frame_for_image = tk.Frame(self.master)
+        self.frame_for_image.grid(row=0, column=0)
+        self.frame_for_button = tk.Frame(self.master)
+        self.frame_for_button.grid(row=1, column=0)
+        self.frame_for_info = tk.Frame(self.master)
+        self.frame_for_info.grid(row=0, column=1)
+
+        self.next()
+
+        b_prev = tk.Button(self.frame_for_button, text="prev", command=self.prev)
+        b_prev.grid(row=0, column=0, padx=10, pady=10)
+        b_next = tk.Button(self.frame_for_button, text="next", command=self.next)
+        b_next.grid(row=0, column=1, padx=10, pady=10)
+        b_open = tk.Button(self.frame_for_button, text="open", command=self.open_image)
+        b_open.grid(row=0, column=3, padx=10, pady=10)
+
     def next(self):
         self.counter += 1
 
@@ -94,36 +120,6 @@ class GUI(Detection):
 
         self.info()
 
-    def top_n(self):
-        self.counter = -1
-        self.master = tk.Toplevel()
-        self.n = 10
-        self.index_image = self._top_n(n=self.n)
-        self.size = self.n
-        self.master.title("Top N for {}".format(self.type_task))
-
-        self.frame_for_image = tk.Frame(self.master)
-        self.frame_for_image.grid(row=0, column=0)
-        self.frame_for_button = tk.Frame(self.master)
-        self.frame_for_button.grid(row=1, column=0)
-        self.frame_for_info = tk.Frame(self.master)
-        self.frame_for_info.grid(row=0, column=1)
-
-        self.next()
-
-        b_prev = tk.Button(self.frame_for_button, text="prev", command=self.prev)
-        b_prev.grid(row=0, column=0, padx=10, pady=10)
-        b_next = tk.Button(self.frame_for_button, text="next", command=self.next)
-        b_next.grid(row=0, column=1, padx=10, pady=10)
-        b_open = tk.Button(self.frame_for_button, text="open", command=self.open_image)
-        b_open.grid(row=0, column=3, padx=10, pady=10)
-
-    def set_size_acc(self):
-        self.size_acc_changes = float(self.message.get())
-        print(self.threshold_scores)
-        self.counter -= 1
-        self.next()
-
     def metrics(self):
         self.counter = -1
         self.master = tk.Toplevel()
@@ -145,24 +141,26 @@ class GUI(Detection):
 
         tk.Entry(master=self.frame_top, textvariable=self.message).grid(row=0, column=2, padx=10, pady=10)
 
-        self.frame_image = tk.Frame(self.master, width=800, height=800)
-        self.frame_image.pack(fill='both', expand=True)
+        self.frame_plot = tk.Frame(self.master, width=800, height=800)
+        self.frame_plot.pack(fill='both', expand=True)
 
         fig, ax = plt.subplots(figsize=(8, 6))
 
-        canvas = FigureCanvasTkAgg(fig, master=self.frame_image)
+        canvas = FigureCanvasTkAgg(fig, master=self.frame_plot)
         canvas.draw()
         canvas.get_tk_widget().pack(fill='both', expand=True)
 
-        toolbar = NavigationToolbar2Tk(canvas, self.frame_image)
+        toolbar = NavigationToolbar2Tk(canvas, self.frame_plot)
         toolbar.update()
 
     def treatment(self, canvas, ax):
         option = {"average precision changes": self.plot_average_precision_changes, }
-        try:
-            self.size_acc_changes = int(self.message.get())
-        except ValueError:
-            pass
+        if self.variable.get() == "average precision changes":
+            try:
+                self.size_acc_changes = int(self.message.get())
+            except ValueError:
+                pass
+
         option[self.variable.get()](canvas, ax)
 
     def plot_average_precision_changes(self, canvas, ax):
@@ -173,10 +171,12 @@ class GUI(Detection):
 
     def multiple_visualize_data(self, set_task):
         self.counter = -1
-        self.set_task = set_task
         self.index_image = self.index
-        self.master = tk.Toplevel()
         self.size = self.size_dataset
+
+        self.set_task = set_task
+
+        self.master = tk.Toplevel()
         self.master.title("Visualize data for {}".format(self.type_task))
 
         self.frame_for_image = tk.Frame(self.master)
@@ -197,7 +197,7 @@ class GUI(Detection):
 
     def multiple_next(self):
         self.counter += 1
-        print("jke")
+
         image = cv2.imread(self.picture_directory + (self.index_image[self.counter % self.size]))
         image = self._multiple_visualize_data(image, self.set_task, (self.index_image[self.counter % self.size]),
                                               self.threshold_scores)
@@ -252,21 +252,23 @@ class GUI(Detection):
         self.set_task = set_task
 
         self.message = tk.StringVar()
-        message_entry = tk.Entry( self.master, textvariable=self.message)
+        message_entry = tk.Entry(self.master, textvariable=self.message)
         message_entry.pack()
 
-        b_prev = tk.Button( self.master,  text="prev", command=self.new)
+        b_prev = tk.Button(self.master, text="prev", command=self.multiple_top_n_solver)
         b_prev.pack()
 
-    def new(self):
+    def multiple_top_n_solver(self):
         self.param = float(self.message.get())
         self.master.destroy()
-        self.n = 10
+
+        self.size = 10
         self.counter = -1
-        self.index_image = self.set_task[0]._multiple_top_n(self.set_task, self.param)
+
         self.master = tk.Toplevel()
-        self.size = self.n
         self.master.title("Visualize data for {}".format(self.type_task))
+
+        self.index_image = self.set_task[0]._multiple_top_n(self.set_task, self.param)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)

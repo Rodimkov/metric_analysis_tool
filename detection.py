@@ -1,6 +1,5 @@
 import cv2
 from metric_analysis import MetricAnalysis
-import matplotlib.pyplot as plt
 import numpy as np
 from collections import OrderedDict
 import warnings
@@ -26,44 +25,39 @@ class Detection(MetricAnalysis):
     def validate(self):
         super().validate()
 
-        try:
-            report_error = []
-            report_obj = self.data.get("report")[0]
+        report_error = []
+        report_obj = self.data.get("report")[0]
 
-            if not 'identifier' in report_obj:
-                report_error.append('identifier')
+        if not 'identifier' in report_obj:
+            report_error.append('identifier')
 
-            if not 'per_class_result' in report_obj:
-                report_error.append('prediction_label')
+        if not 'per_class_result' in report_obj:
+            report_error.append('prediction_label')
 
-            if report_error:
-                report_error = ', '.join(report_error)
-                raise Exception(report_error)
+        if report_error:
+            report_error = ', '.join(report_error)
+            raise KeyError("there are no keys in the file <json>: {}".format(report_error))
 
-            key_class = list(self.data.get("report")[0].get("per_class_result").keys())[0]
+        key_class = list(self.data.get("report")[0].get("per_class_result").keys())[0]
 
-            class_result_error = []
-            class_result_obj = self.data.get("report")[0].get("per_class_result").get(key_class)
+        class_result_error = []
+        class_result_obj = self.data.get("report")[0].get("per_class_result").get(key_class)
 
-            if not 'prediction_boxes' in class_result_obj:
-                class_result_error.append('prediction_boxes')
+        if not 'prediction_boxes' in class_result_obj:
+            class_result_error.append('prediction_boxes')
 
-            if not 'annotation_boxes' in class_result_obj:
-                class_result_error.append('annotation_boxes')
+        if not 'annotation_boxes' in class_result_obj:
+            class_result_error.append('annotation_boxes')
 
-            if not 'prediction_scores' in class_result_obj:
-                class_result_error.append('prediction_scores')
+        if not 'prediction_scores' in class_result_obj:
+            class_result_error.append('prediction_scores')
 
-            if not 'average_precision' in class_result_obj:
-                class_result_error.append('average_precision')
+        if not 'average_precision' in class_result_obj:
+            class_result_error.append('average_precision')
 
-            if report_error:
-                class_result_error = ', '.join(class_result_error)
-                raise Exception(class_result_error)
-
-        except Exception as e:
-            print("there are no keys in the file <json>: {}".format(e))
-            raise SystemExit(1)
+        if report_error:
+            report_error = ', '.join(report_error)
+            raise KeyError("there are no keys in the file <json>: {}".format(report_error))
 
     def parser(self):
         super().parser()
@@ -313,13 +307,5 @@ class Detection(MetricAnalysis):
             n = len(result)
 
         sort_key = sorted(result, key=lambda k: (result[k]), reverse=False)[:n]
-
-        color = np.zeros((len(set_task), 1, 3), np.uint8)
-
-        for i in range(len(set_task)):
-            color[i] = np.array([i * int(180 / (len(set_task))), 255, 255])
-
-        color = cv2.cvtColor(color, cv2.COLOR_HSV2BGR)
-        color = np.resize(color, new_shape=(len(set_task), 3))
 
         return sort_key

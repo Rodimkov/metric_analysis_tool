@@ -7,6 +7,7 @@ from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
 import matplotlib.pyplot as plt
 
+
 class GUI(Segmentation):
     def __init__(self, type_task, data, file_name, directory, mask):
         super().__init__(type_task, data, file_name, directory, mask)
@@ -14,8 +15,9 @@ class GUI(Segmentation):
     def visualize_data(self):
         self.counter = -1
         self.index_image = self.index
-        self.master = tk.Toplevel()
         self.size = self.size_dataset
+
+        self.master = tk.Toplevel()
         self.master.title("Visualize data for {}".format(self.type_task))
 
         self.frame_for_image = tk.Frame(self.master)
@@ -48,11 +50,12 @@ class GUI(Segmentation):
 
     def top_n(self):
         self.counter = -1
+        self.size = 10
+
         self.master = tk.Toplevel()
-        self.n = 10
-        self.index_image = self._top_n(n=self.n)
-        self.size = self.n
         self.master.title("Top N for {}".format(self.type_task))
+
+        self.index_image = self._top_n(n=self.size)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)
@@ -133,6 +136,12 @@ class GUI(Segmentation):
 
     def treatment(self, canvas, ax):
         option = {"confusion matrix": self.plot_confusion_matrix}
+        if self.variable.get() == "accuracy changes":
+            try:
+                self.size_acc_changes = int(self.message.get())
+            except ValueError:
+                pass
+
         option[self.variable.get()](canvas, ax)
 
     def plot_confusion_matrix(self, canvas, ax):
@@ -141,13 +150,14 @@ class GUI(Segmentation):
 
         canvas.draw()
 
-
     def multiple_visualize_data(self, set_task):
         self.counter = -1
-        self.set_task = set_task
         self.index_image = self.index
-        self.master = tk.Toplevel()
         self.size = self.size_dataset
+
+        self.set_task = set_task
+
+        self.master = tk.Toplevel()
         self.master.title("Visualize data for {}".format(self.type_task))
 
         self.frame_for_image = tk.Frame(self.master)
@@ -171,7 +181,7 @@ class GUI(Segmentation):
 
         images = self._multiple_visualize_data(self.set_task, self.index_image[self.counter % self.size])
 
-        self.image =[]
+        self.image = []
         for i, image in enumerate(images):
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
             image = cv2.resize(image, (512, 512))
@@ -179,7 +189,6 @@ class GUI(Segmentation):
             image = Image.fromarray(image)
             self.image.append(ImageTk.PhotoImage(image=image))
             tk.Label(self.frame_for_image, image=self.image[i]).grid(row=0, column=i, padx=50, pady=10)
-
 
         self.multiple_info()
 
@@ -202,12 +211,12 @@ class GUI(Segmentation):
         pass
 
     def multiple_top_n(self, set_task):
-        self.n = 10
-        self.counter = -1
         self.set_task = set_task
-        self.index_image = self.set_task[0]._multiple_top_n(set_task)
+
+        self.size = 10
+        self.counter = -1
+
         self.master = tk.Toplevel()
-        self.size = self.n
         self.master.title("Visualize data for {}".format(self.type_task))
 
         self.frame_for_image = tk.Frame(self.master)
@@ -225,4 +234,3 @@ class GUI(Segmentation):
         b_next.grid(row=0, column=1, padx=10, pady=10)
         b_open = tk.Button(self.frame_for_button, text="open", command=self.open_image)
         b_open.grid(row=0, column=3, padx=10, pady=10)
-

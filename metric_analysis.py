@@ -26,30 +26,32 @@ class MetricAnalysis(ABC):
         self.label_map = OrderedDict()
 
         for name in sorted(self.dataset_meta.get("label_map").keys()):
-           self.label_map[name] = self.dataset_meta.get("label_map").get(name)
+            self.label_map[name] = self.dataset_meta.get("label_map").get(name)
 
-        #for i in range(1000):
+        # for i in range(1000):
         #    self.label_map[str(i)] = str(i)
 
         self.size_dataset = len(self.reports)
 
     def validate(self):
-        try:
-            if not 'processing_info' in self.data:
-                raise Exception('processing_info')
-            if not 'dataset_meta' in self.data:
-                raise Exception('dataset_meta')
-            if not 'report' in self.data:
-                raise Exception('report')
-            if not 'report_type' in self.data:
-                raise Exception('report_type')
+        report_error = ""
+        report_obj = self.data.get("report")[0]
 
-            if not 'label_map' in self.data.get("dataset_meta"):
-                raise Exception('label_map')
+        if not 'processing_info' in self.data:
+            report_error.append('processing info')
+        if not 'dataset_meta' in self.data:
+            report_error.append('dataset meta')
+        if not 'report' in self.data:
+            report_error.append('report')
+        if not 'report_type' in self.data:
+            report_error.append('report type')
 
-        except Exception as e:
-            print("no key '{}' in file <json>".format(e))
-            raise SystemExit(1)
+        if not 'label_map' in self.data.get("dataset_meta"):
+            report_error.append('label map')
+
+        if report_error:
+            report_error = ', '.join(report_error)
+            raise KeyError("there are no keys in the file <json>: {}".format(report_error))
 
     @abstractmethod
     def metrics(self):
