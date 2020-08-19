@@ -214,28 +214,29 @@ class Detection(MetricAnalysis):
 
         return image
 
-    def _visualize_data(self, image, name, threshold_scores):
+    def _visualize_data(self, name):
+        image = cv2.imread(self.picture_directory + name)
 
-        self.marking_predition(image, name, (255, 0, 0), threshold_scores)
+        self.marking_predition(image, name, (255, 0, 0), self.threshold_scores)
         self.marking_annotation(image, name, (0, 0, 255))
 
         return image
 
-    @staticmethod
-    def _multiple_visualize_data(image, set_task, name, threshold_scores):
-        color = np.zeros((len(set_task), 1, 3), np.uint8)
+    def _multiple_visualize_data(self, name):
+        image = cv2.imread(self.set_task[0].picture_directory + name)
+        color = np.zeros((len(self.set_task), 1, 3), np.uint8)
 
-        for i in range(len(set_task)):
-            color[i] = np.array([i * int(180 / (len(set_task))), 255, 255])
+        for i in range(len(self.set_task)):
+            color[i] = np.array([i * int(180 / (len(self.set_task))), 255, 255])
 
         color = cv2.cvtColor(color, cv2.COLOR_HSV2BGR)
-        color = np.resize(color, new_shape=(len(set_task), 3))
+        color = np.resize(color, new_shape=(len(self.set_task), 3))
 
-        if not set_task[1].identifier.get(name, []):
-            warnings.warn("in file {} no image {}".format(set_task[1].file, name))
+        if not self.set_task[1].identifier.get(name, []):
+            warnings.warn("in file {} no image {}".format(self.set_task[1].file, name))
         else:
-            for i, task in enumerate(set_task):
-                task.marking_predition(image, name, tuple(color[i]), threshold_scores)
+            for i, task in enumerate(self.set_task):
+                task.marking_predition(image, name, tuple(color[i]), self.set_task[0].threshold_scores)
 
         return image
 

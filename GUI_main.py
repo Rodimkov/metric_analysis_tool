@@ -41,13 +41,13 @@ class MainMenu(object):
         label_task = "type task: {}".format(name)
         tk.Label(self.frame, text=label_task).grid(row=0, column=0, padx=10, pady=10)
 
-        tk.Button(self.frame, text="visualize data",
+        tk.Button(self.frame, text="visualize data", width=12,
                   command=self.visualize_data).grid(row=1, column=0, padx=10, pady=10)
 
-        tk.Button(self.frame, text="top n",
+        tk.Button(self.frame, text="top n", width=12,
                   command=self.top_n).grid(row=2, column=0, padx=10, pady=10)
 
-        tk.Button(self.frame, text="metric",
+        tk.Button(self.frame, text="metric", width=12,
                   command=self.metric).grid(row=3, column=0, padx=10, pady=10)
 
         self.task = self.create_task(name, data, file_name, directory, mask)

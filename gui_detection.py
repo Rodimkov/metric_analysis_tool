@@ -29,45 +29,61 @@ class GUI(Detection):
         self.frame_for_info = tk.Frame(self.master)
         self.frame_for_info.grid(row=0, column=1)
 
-        self.next()
+        self.next(self._visualize_data, self.info)
 
-        b_prev = tk.Button(self.frame_for_button, text="prev", command=self.prev)
-        b_prev.grid(row=0, column=0, padx=10, pady=10)
-        b_next = tk.Button(self.frame_for_button, text="next", command=self.next)
-        b_next.grid(row=0, column=1, padx=10, pady=10)
-        b_open = tk.Button(self.frame_for_button, text="open", command=self.open_image)
-        b_open.grid(row=0, column=3, padx=10, pady=10)
+        self.movement_buttons(self._visualize_data, self.info)
 
     def set_threshold(self):
         self.threshold_scores = float(self.message.get())
         self.counter -= 1
-        self.next()
+
+        self.next(self._visualize_data, self.info)
 
     def info(self):
         name = self.index_image[self.counter]
+        text_name = name
+        if len(text_name) > 28:
+            text_name = text_name[:28] + '\n' + text_name[28:]
 
-        tk.Label(self.frame_for_info, height=1, width=20, text=name).grid(row=0, column=1, padx=10, pady=10)
-        tk.Label(self.frame_for_info, height=1, width=20, text="threshold score").grid(row=1, column=0, padx=10,
-                                                                                       pady=10)
+        self.frame_top = tk.Frame(self.frame_for_info, padx=25, pady=2)
+        self.frame_top.grid(row=0, column=0, padx=10, pady=10)
+
+        self.frame_bot = tk.Frame(self.frame_for_info, padx=25, pady=2)
+        self.frame_bot.grid(row=1, column=0, padx=10, pady=10)
+
+        tk.Label(self.frame_top, height=2, width=45, text="picture name: {}".format(text_name)).pack(side=tk.TOP,
+                                                                                                     pady=10)
+        tk.Label(self.frame_top, height=1, width=30, text="threshold score").pack(side=tk.TOP, pady=10)
+
+        message_button = tk.Button(self.frame_bot, text="Change value", command=self.set_threshold)
+        message_button.pack(side=tk.LEFT, pady=10, padx=25)
 
         self.message = tk.StringVar()
-        message_entry = tk.Entry(self.frame_for_info, textvariable=self.message, width=7)
-        message_entry.grid(row=1, column=2, padx=5, pady=5)
-
-        message_button = tk.Button(self.frame_for_info, text="Change value", command=self.set_threshold)
-        message_button.grid(row=2, column=1, padx=5, pady=5)
-
-    def open_image(self):
-        import os
-        from tkinter import filedialog as fd
-        file_name = fd.askopenfilename(title="Select file")
-        file_name = os.path.basename(file_name)
-        self.counter = np.where(np.array(self.index) == file_name)[0][0] - 1
-        self.next()
+        message_entry = tk.Entry(self.frame_bot, textvariable=self.message, width=10)
+        message_entry.insert(tk.END, str(self.threshold_scores))
+        message_entry.pack(side=tk.LEFT, pady=10)
 
     def top_n(self):
-        self.counter = -1
+        self.master = tk.Toplevel()
+        self.master.geometry("300x150+500+500")
         self.size = 10
+
+        self.frame_bot = tk.Frame(self.master, padx=25, pady=2)
+        self.frame_bot.pack(anchor="n")
+        tk.Label(self.frame_bot, height=1, width=15, text="N").pack(side=tk.LEFT, pady=5)
+
+        self.message_n = tk.StringVar()
+        message_entry = tk.Entry(self.frame_bot, textvariable=self.message_n)
+        message_entry.insert(tk.END, str(self.size))
+        message_entry.pack(side=tk.LEFT, pady=10, padx=2)
+
+        tk.Button(self.master, text="GO", command=self.top_n_solver).pack()
+
+    def top_n_solver(self):
+        self.size = int(self.message_n.get())
+        self.master.destroy()
+
+        self.counter = -1
 
         self.master = tk.Toplevel()
         self.master.title("Top N for {}".format(self.type_task))
@@ -81,65 +97,34 @@ class GUI(Detection):
         self.frame_for_info = tk.Frame(self.master)
         self.frame_for_info.grid(row=0, column=1)
 
-        self.next()
+        self.next(self._visualize_data, self.info)
 
-        b_prev = tk.Button(self.frame_for_button, text="prev", command=self.prev)
-        b_prev.grid(row=0, column=0, padx=10, pady=10)
-        b_next = tk.Button(self.frame_for_button, text="next", command=self.next)
-        b_next.grid(row=0, column=1, padx=10, pady=10)
-        b_open = tk.Button(self.frame_for_button, text="open", command=self.open_image)
-        b_open.grid(row=0, column=3, padx=10, pady=10)
-
-    def next(self):
-        self.counter += 1
-
-        image = cv2.imread(self.picture_directory + (self.index_image[self.counter % self.size]))
-        image = self._visualize_data(image, (self.index_image[self.counter % self.size]), self.threshold_scores)
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        image = cv2.resize(image, (512, 512))
-
-        image = Image.fromarray(image)
-        self.image = ImageTk.PhotoImage(image=image)
-        image_label = tk.Label(self.frame_for_image, image=self.image)
-        image_label.grid(row=0, column=0, padx=50, pady=10)
-
-        self.info()
-
-    def prev(self):
-        self.counter -= 1
-
-        image = cv2.imread(self.picture_directory + (self.index_image[self.counter % self.size]))
-        image = self._visualize_data(image, (self.index_image[self.counter % self.size]), self.threshold_scores)
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        image = cv2.resize(image, (512, 512))
-
-        image = Image.fromarray(image)
-        self.image = ImageTk.PhotoImage(image=image)
-        image_label = tk.Label(self.frame_for_image, image=self.image)
-        image_label.grid(row=0, column=0, padx=50, pady=10)
-
-        self.info()
+        self.movement_buttons(self._visualize_data, self.info)
 
     def metrics(self):
         self.counter = -1
         self.master = tk.Toplevel()
         self.master.title("Metric for {}".format(self.type_task))
 
-        self.frame_top = tk.Frame(self.master, padx=100, pady=10)
+        self.frame_top = tk.Frame(self.master, padx=15, pady=2)
         self.frame_top.pack(anchor="n")
+
+        self.frame_bot = tk.Frame(self.master, padx=15, pady=2)
+        self.frame_bot.pack(anchor="n")
 
         self.variable = tk.StringVar(self.frame_top)
         self.variable.set("average precision changes")
+
         menu = tk.OptionMenu(self.frame_top, self.variable, "average precision changes")
-        menu.config(height=1, width=10)
-        menu.grid(row=0, column=0, padx=10, pady=10)
+        menu.config(height=1, width=25)
+        menu.pack(side=tk.LEFT, pady=10)
 
         tk.Button(master=self.frame_top, text="plot", command=lambda: self.treatment(canvas, ax),
-                  height=1, width=10).grid(row=0, column=1, padx=10, pady=10)
+                  height=1, width=10).pack(side=tk.LEFT, pady=10)
 
         self.message = tk.StringVar()
-
-        tk.Entry(master=self.frame_top, textvariable=self.message).grid(row=0, column=2, padx=10, pady=10)
+        tk.Label(master=self.frame_bot, height=1, width=15, text="window size = ").pack(side=tk.LEFT, pady=10)
+        tk.Entry(master=self.frame_bot, textvariable=self.message, width=7).pack(side=tk.LEFT, pady=10)
 
         self.frame_plot = tk.Frame(self.master, width=800, height=800)
         self.frame_plot.pack(fill='both', expand=True)
@@ -186,89 +171,79 @@ class GUI(Detection):
         self.frame_for_info = tk.Frame(self.master)
         self.frame_for_info.grid(row=0, column=1)
 
-        self.multiple_next()
+        self.next(self._multiple_visualize_data, self.multiple_info)
 
-        b_prev = tk.Button(self.frame_for_button, text="prev", command=self.multiple_prev)
-        b_prev.grid(row=0, column=0, padx=10, pady=10)
-        b_next = tk.Button(self.frame_for_button, text="next", command=self.multiple_next)
-        b_next.grid(row=0, column=1, padx=10, pady=10)
-        b_open = tk.Button(self.frame_for_button, text="open", command=self.open_image)
-        b_open.grid(row=0, column=3, padx=10, pady=10)
-
-    def multiple_next(self):
-        self.counter += 1
-
-        image = cv2.imread(self.picture_directory + (self.index_image[self.counter % self.size]))
-        image = self._multiple_visualize_data(image, self.set_task, (self.index_image[self.counter % self.size]),
-                                              self.threshold_scores)
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        image = cv2.resize(image, (512, 512))
-
-        image = Image.fromarray(image)
-        self.image = ImageTk.PhotoImage(image=image)
-        image_label = tk.Label(self.frame_for_image, image=self.image)
-        image_label.grid(row=0, column=0, padx=50, pady=10)
-
-        self.multiple_info()
-
-    def multiple_prev(self):
-        self.counter -= 1
-
-        image = cv2.imread(self.picture_directory + (self.index_image[self.counter % self.size]))
-        image = self._multiple_visualize_data(image, self.set_task, (self.index_image[self.counter % self.size]),
-                                              self.threshold_scores)
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        image = cv2.resize(image, (512, 512))
-
-        image = Image.fromarray(image)
-        self.image = ImageTk.PhotoImage(image=image)
-        image_label = tk.Label(self.frame_for_image, image=self.image)
-        image_label.grid(row=0, column=0, padx=50, pady=10)
-
-        self.multiple_info()
+        self.movement_buttons(self._multiple_visualize_data, self.multiple_info)
 
     def multiple_info(self):
         name = self.index_image[self.counter]
+        text_name = name
+        if len(text_name) > 28:
+            text_name = text_name[:28] + '\n' + text_name[28:]
 
-        tk.Label(self.frame_for_info, height=1, width=45, text=name).grid(row=0, column=0, padx=10, pady=10)
-        tk.Label(self.frame_for_info, height=1, width=45, text="threshold score").grid(row=1, column=0, padx=10,
-                                                                                       pady=10)
+        self.frame_top = tk.Frame(self.frame_for_info, padx=25, pady=2)
+        self.frame_top.grid(row=0, column=0, padx=10, pady=10)
+
+        self.frame_bot = tk.Frame(self.frame_for_info, padx=25, pady=2)
+        self.frame_bot.grid(row=1, column=0, padx=10, pady=10)
+
+        tk.Label(self.frame_top, height=2, width=45, text="picture name: {}".format(text_name)).pack(side=tk.TOP,
+                                                                                                     pady=10)
+        tk.Label(self.frame_top, height=1, width=30, text="threshold score").pack(side=tk.TOP, pady=10)
+
+        message_button = tk.Button(self.frame_bot, text="Change value", command=self.set_threshold)
+        message_button.pack(side=tk.LEFT, pady=10, padx=25)
 
         self.message = tk.StringVar()
-        message_entry = tk.Entry(self.frame_for_info, textvariable=self.message)
-        message_entry.grid(row=1, column=1, padx=10, pady=10)
-
-        message_button = tk.Button(self.frame_for_info, text="Change value", command=self.multiple_set_threshold)
-        message_button.grid(row=2, column=1, padx=10, pady=10)
+        message_entry = tk.Entry(self.frame_bot, textvariable=self.message, width=10)
+        message_entry.insert(tk.END, str(self.threshold_scores))
+        message_entry.pack(side=tk.LEFT, pady=10)
 
     def multiple_set_threshold(self):
         self.threshold_scores = float(self.message.get())
         self.counter -= 1
-        self.multiple_next()
+        self.next(self._multiple_visualize_data, self.multiple_info)
 
     def multiple_top_n(self, set_task):
         self.master = tk.Toplevel()
-
+        self.master.geometry("300x150+500+500")
         self.set_task = set_task
+        self.size = 10
 
-        self.message = tk.StringVar()
-        message_entry = tk.Entry(self.master, textvariable=self.message)
-        message_entry.pack()
+        self.frame_top = tk.Frame(self.master, padx=25, pady=2)
+        self.frame_top.pack(anchor="n")
 
-        b_prev = tk.Button(self.master, text="prev", command=self.multiple_top_n_solver)
+        self.frame_bot = tk.Frame(self.master, padx=25, pady=2)
+        self.frame_bot.pack(anchor="n")
+
+        tk.Label(self.frame_top, height=1, width=15, text="threshold score").pack(side=tk.LEFT, pady=5)
+
+        self.message_tresh = tk.StringVar()
+        message_entry = tk.Entry(self.frame_top, textvariable=self.message_tresh)
+        message_entry.insert(tk.END, str(self.threshold_scores))
+        message_entry.pack(side=tk.LEFT, pady=10, padx=2)
+
+        tk.Label(self.frame_bot, height=1, width=15, text="N").pack(side=tk.LEFT, pady=5)
+
+        self.message_n = tk.StringVar()
+        message_entry = tk.Entry(self.frame_bot, textvariable=self.message_n)
+        message_entry.insert(tk.END, str(self.size))
+        message_entry.pack(side=tk.LEFT, pady=10, padx=2)
+
+        b_prev = tk.Button(self.master, text="GO", command=self.multiple_top_n_solver)
         b_prev.pack()
 
     def multiple_top_n_solver(self):
-        self.param = float(self.message.get())
+        self.threshold_scores = float(self.message_tresh.get())
+        self.size = int(self.message_n.get())
         self.master.destroy()
 
-        self.size = 10
         self.counter = -1
 
         self.master = tk.Toplevel()
         self.master.title("Visualize data for {}".format(self.type_task))
 
-        self.index_image = self.set_task[0]._multiple_top_n(self.set_task, self.param)
+        self.index_image = self.set_task[0]._multiple_top_n(self.set_task, self.threshold_scores, n=self.size)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)
@@ -277,11 +252,6 @@ class GUI(Detection):
         self.frame_for_info = tk.Frame(self.master)
         self.frame_for_info.grid(row=0, column=1)
 
-        self.multiple_next()
+        self.next(self._multiple_visualize_data, self.multiple_info)
 
-        b_prev = tk.Button(self.frame_for_button, text="prev", command=self.multiple_prev)
-        b_prev.grid(row=0, column=0, padx=10, pady=10)
-        b_next = tk.Button(self.frame_for_button, text="next", command=self.multiple_next)
-        b_next.grid(row=0, column=1, padx=10, pady=10)
-        b_open = tk.Button(self.frame_for_button, text="open", command=self.open_image)
-        b_open.grid(row=0, column=3, padx=10, pady=10)
+        self.movement_buttons(self._multiple_visualize_data, self.multiple_info)

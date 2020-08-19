@@ -15,8 +15,6 @@ class Segmentation(MetricAnalysis):
         self.index = []
         self.confusion_matrix = OrderedDict()
         self.predicted_mask = OrderedDict()
-        self.segmentation_colors = None
-        self.argmax_data = False
 
         self.validate()
         self.parser()
@@ -32,7 +30,6 @@ class Segmentation(MetricAnalysis):
             self.confusion_matrix[report["identifier"]] = report["confusion_matrix"]
 
         if 'segmentation_colors' in self.dataset_meta.keys():
-            self.argmax_data = True
             self.segmentation_colors = np.array(self.data.get("dataset_meta").get('segmentation_colors'))
         elif len(self.label_map) > 20:
             self.segmentation_colors = np.random.randint(180, size=(len(self.label_map), 3))
@@ -88,8 +85,11 @@ class Segmentation(MetricAnalysis):
         return ax
 
     def plot_image(self, image, mask):
-        if not self.argmax_data:
+        if len(mask.shape) == 3 and mask.shape[0] != 1:
             mask = np.argmax(mask, axis=0).astype(np.uint8)
+        if mask.shape[0] == 1:
+            mask = np.resize(mask, (mask.shape[1], mask.shape[2]))
+
         mask = mask.astype(np.uint8)
         image = cv2.resize(image, (mask.shape[1], mask.shape[0]))
 
@@ -106,7 +106,10 @@ class Segmentation(MetricAnalysis):
 
         return image
 
-    def _visualize_data(self, image, mask):
+    def _visualize_data(self, name):
+        mask = np.load(self.mask + self.predicted_mask[name], allow_pickle=True)
+        image = cv2.imread(self.picture_directory + name)
+        print(image.shape)
 
         image = self.plot_image(image, mask)
         return image
@@ -126,14 +129,13 @@ class Segmentation(MetricAnalysis):
 
         return sort_key
 
-    @staticmethod
-    def _multiple_visualize_data(set_task, name):
+    def _multiple_visualize_data(self, name):
         prediction = []
 
-        if not set_task[1].identifier.get(name):
-            warnings.warn("in file {} no image {}".format(set_task[1].file, name))
+        if not self.set_task[1].identifier.get(name):
+            warnings.warn("in file {} no image {}".format(self.set_task[1].file, name))
         else:
-            for i, task in enumerate(set_task):
+            for i, task in enumerate(self.set_task):
                 mask = np.load(task.mask + task.predicted_mask[name], allow_pickle=True)
                 image = cv2.imread(task.picture_directory + name)
                 prediction.append(image.copy())

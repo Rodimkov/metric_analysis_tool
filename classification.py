@@ -17,7 +17,7 @@ class Classification(MetricAnalysis):
         self.prediction_scores = OrderedDict()
         self.accuracy_result = OrderedDict()
 
-        self.validate()
+        # self.validate()
         self.parser()
 
     def validate(self):
@@ -86,6 +86,12 @@ class Classification(MetricAnalysis):
             # self.accuracy_result[report["identifier"]] = report["accuracy@top1_result"]
             self.accuracy_result[report["identifier"]] = report["accuracy_result"]
 
+    def _visualize_data(self, name):
+
+        image = cv2.imread(self.picture_directory + name)
+
+        return image
+
     def _top_n(self, n=10):
         if n > self.size_dataset:
             warnings.warn("""value n is greater than the size of the dataset,
@@ -147,6 +153,11 @@ class Classification(MetricAnalysis):
         ax.set_xlabel("prediction label")
         ax.set_ylabel("annotation label")
         return ax
+
+    def _multiple_visualize_data(self, name):
+        image = cv2.imread(self.set_task[0].picture_directory + name)
+
+        return image
 
     @staticmethod
     def _multiple_top_n(set_task, n=10):

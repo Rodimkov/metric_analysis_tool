@@ -27,30 +27,45 @@ class GUI(Segmentation):
         self.frame_for_info = tk.Frame(self.master)
         self.frame_for_info.grid(row=0, column=1)
 
-        self.next()
+        self.next(self._visualize_data, self.info)
 
-        b_prev = tk.Button(self.frame_for_button, text="prev", command=self.prev)
-        b_prev.grid(row=0, column=0, padx=10, pady=10)
-        b_next = tk.Button(self.frame_for_button, text="next", command=self.next)
-        b_next.grid(row=0, column=1, padx=10, pady=10)
-        b_open = tk.Button(self.frame_for_button, text="open", command=self.open_image)
-        b_open.grid(row=0, column=3, padx=10, pady=10)
+        self.movement_buttons(self._visualize_data, self.info)
 
     def info(self):
         name = self.index_image[self.counter]
-        pass
+        self.square_colors = []
+        for i, color in enumerate(self.segmentation_colors):
+            square = np.zeros((7,7,3))
+            square[:,:] = color
+            square = square.astype(np.uint8)
+            square = cv2.cvtColor(square, cv2.COLOR_RGB2BGR)
 
-    def open_image(self):
-        import os
-        from tkinter import filedialog as fd
-        file_name = fd.askopenfilename(title="Select file")
-        file_name = os.path.basename(file_name)
-        self.counter = np.where(np.array(self.index) == file_name)[0][0] - 1
-        self.next()
+            square = Image.fromarray(square)
+            self.square_colors.append(ImageTk.PhotoImage(image=square))
+            tk.Label(self.frame_for_info, image=self.square_colors[i]).grid(row=int(i/2), column=2*(i%2), padx=10, pady=3)
+            tk.Label(self.frame_for_info, text=self.label_map[str(i)]).grid(row=int(i/2), column=2*(i%2)+1, padx=10, pady=3)
 
     def top_n(self):
-        self.counter = -1
+        self.master = tk.Toplevel()
+        self.master.geometry("300x150+500+500")
         self.size = 10
+
+        self.frame_bot = tk.Frame(self.master, padx=25, pady=2)
+        self.frame_bot.pack(anchor="n")
+        tk.Label(self.frame_bot, height=1, width=15, text="N").pack(side=tk.LEFT, pady=5)
+
+        self.message_n = tk.StringVar()
+        message_entry = tk.Entry(self.frame_bot, textvariable=self.message_n)
+        message_entry.insert(tk.END, str(self.size))
+        message_entry.pack(side=tk.LEFT, pady=10, padx=2)
+
+        tk.Button(self.master, text="GO", command=self.top_n_solver).pack()
+
+    def top_n_solver(self):
+        self.size = int(self.message_n.get())
+        self.master.destroy()
+
+        self.counter = -1
 
         self.master = tk.Toplevel()
         self.master.title("Top N for {}".format(self.type_task))
@@ -64,46 +79,9 @@ class GUI(Segmentation):
         self.frame_for_info = tk.Frame(self.master)
         self.frame_for_info.grid(row=0, column=1)
 
-        self.next()
+        self.next(self._visualize_data, self.info)
 
-        b_prev = tk.Button(self.frame_for_button, text="prev", command=self.prev)
-        b_prev.grid(row=0, column=0, padx=10, pady=10)
-        b_next = tk.Button(self.frame_for_button, text="next", command=self.next)
-        b_next.grid(row=0, column=1, padx=10, pady=10)
-        b_open = tk.Button(self.frame_for_button, text="open", command=self.open_image)
-        b_open.grid(row=0, column=3, padx=10, pady=10)
-
-    def next(self):
-        self.counter += 1
-
-        mask = np.load(self.mask + self.predicted_mask[self.index_image[self.counter % self.size]], allow_pickle=True)
-        image = cv2.imread(self.picture_directory + (self.index_image[self.counter % self.size]))
-        image = self._visualize_data(image, mask)
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        image = cv2.resize(image, (512, 512))
-
-        image = Image.fromarray(image)
-        self.image = ImageTk.PhotoImage(image=image)
-        image_label = tk.Label(self.frame_for_image, image=self.image)
-        image_label.grid(row=0, column=0, padx=50, pady=10)
-
-        self.info()
-
-    def prev(self):
-        self.counter -= 1
-
-        mask = np.load(self.mask + self.predicted_mask[self.index_image[self.counter % self.size]], allow_pickle=True)
-        image = cv2.imread(self.picture_directory + (self.index_image[self.counter % self.size]))
-        image = self._visualize_data(image, mask)
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        image = cv2.resize(image, (512, 512))
-
-        image = Image.fromarray(image)
-        self.image = ImageTk.PhotoImage(image=image)
-        image_label = tk.Label(self.frame_for_image, image=self.image)
-        image_label.grid(row=0, column=0, padx=50, pady=10)
-
-        self.info()
+        self.movement_buttons(self._visualize_data, self.info)
 
     def metrics(self):
         self.counter = -1
@@ -116,7 +94,7 @@ class GUI(Segmentation):
         self.variable = tk.StringVar(self.frame_top)
         self.variable.set("confusion matrix")
         menu = tk.OptionMenu(self.frame_top, self.variable, "confusion matrix")
-        menu.config(height=1, width=10)
+        menu.config(height=1, width=20)
         menu.grid(row=0, column=0, padx=10, pady=10)
 
         tk.Button(master=self.frame_top, text="plot", command=lambda: self.treatment(canvas, ax),
@@ -176,48 +154,39 @@ class GUI(Segmentation):
         b_open = tk.Button(self.frame_for_button, text="open", command=self.open_image)
         b_open.grid(row=0, column=3, padx=10, pady=10)
 
-    def multiple_next(self):
-        self.counter += 1
-
-        images = self._multiple_visualize_data(self.set_task, self.index_image[self.counter % self.size])
-
-        self.image = []
-        for i, image in enumerate(images):
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            image = cv2.resize(image, (512, 512))
-
-            image = Image.fromarray(image)
-            self.image.append(ImageTk.PhotoImage(image=image))
-            tk.Label(self.frame_for_image, image=self.image[i]).grid(row=0, column=i, padx=50, pady=10)
-
-        self.multiple_info()
-
-    def multiple_prev(self):
-        self.counter -= 1
-
-        image = self._multiple_visualize_data(self.set_task, self.index_image[self.counter % self.size])
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        image = cv2.resize(image, (512, 512))
-
-        image = Image.fromarray(image)
-        self.image = ImageTk.PhotoImage(image=image)
-        image_label = tk.Label(self.frame_for_image, image=self.image)
-        image_label.grid(row=0, column=0, padx=50, pady=10)
-
-        self.multiple_info()
-
     def multiple_info(self):
         name = self.index_image[self.counter]
         pass
 
     def multiple_top_n(self, set_task):
+        self.master = tk.Toplevel()
+        self.master.geometry("300x150+500+500")
         self.set_task = set_task
-
         self.size = 10
+
+        self.frame_bot = tk.Frame(self.master, padx=25, pady=2)
+        self.frame_bot.pack(anchor="n")
+
+        tk.Label(self.frame_bot, height=1, width=15, text="N").pack(side=tk.LEFT, pady=5)
+
+        self.message_n = tk.StringVar()
+        message_entry = tk.Entry(self.frame_bot, textvariable=self.message_n)
+        message_entry.insert(tk.END, str(self.size))
+        message_entry.pack(side=tk.LEFT, pady=10, padx=2)
+
+        b_prev = tk.Button(self.master, text="GO", command=self.multiple_top_n_solver)
+        b_prev.pack()
+
+    def multiple_top_n_solver(self):
+        self.size = int(self.message_n.get())
+        self.master.destroy()
+
         self.counter = -1
 
         self.master = tk.Toplevel()
-        self.master.title("Visualize data for {}".format(self.type_task))
+        self.master.title("top n for {}".format(self.type_task))
+
+        self.index_image = self.set_task[0]._multiple_top_n(self.set_task, n=self.size)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)

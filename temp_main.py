@@ -1,9 +1,7 @@
 import argparse
 import os
-import task_factory
 import json
 import orjson
-import GUI.main_gui as mg
 import GUI_main
 # This file is a temporary solution and contains inaccuracies.
 # As a result, it is not written optimally
