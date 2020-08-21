@@ -1,22 +1,21 @@
 import argparse
 import os
-import task_factory
 import json
-import orjson
-import GUI.main_gui as mg
-# This file is a temporary solution and contains inaccuracies.
-# As a result, it is not written optimally
+import GUI_main
 
 
 def create_parser():
     argument_parser = argparse.ArgumentParser()
 
-    argument_parser.add_argument('-f', '--file', nargs='+', type=file_path,
+    argument_parser.add_argument('-f', '--file', nargs='+', type=file_path, default=[None, None],
                                  help="results description file")
-    argument_parser.add_argument('-d', '--directory', required=True, type=dir_path,
 
+    argument_parser.add_argument('-d', '--directory', required=True, type=dir_path,
                                  help="directory containing data")
-    argument_parser.add_argument('-m', '--mask', nargs='+',
+
+    argument_parser.add_argument('-m', '--mask', nargs='+', default=[None, None],
+                                 help="directory containing data")
+    argument_parser.add_argument('-tm', '--true_mask', required=False, default=None,
                                  help="directory containing data")
 
     return argument_parser
@@ -43,9 +42,6 @@ def dir_path(path):
 def read_data(json_file):
     with open(json_file, "r") as read_file:
         data = json.load(read_file)
-
-    #with open(json_file, "rb") as read_file:
-    #   data = orjson.loads(read_file.read())
     try:
         if not 'report_type' in data:
             raise Exception('report_type')
@@ -57,48 +53,12 @@ def read_data(json_file):
 
     return data, type_task
 
+
 def main():
     parser = create_parser()
     namespace = parser.parse_args()
-    flag = False
-    if flag:
-        if len(namespace.file) == 1:
-            data, type_task = read_data(namespace.file[0])
-            try:
-                task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0], namespace.directory, namespace.mask[0])
-            except TypeError:
-                task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0], namespace.directory, namespace.mask)
 
-
-            task.visualize_data()
-            #task.metrics()
-            task.top_n()
-
-        else:
-            task = []
-            for i in range(len(namespace.file)):
-                data, type_task = read_data(namespace.file[i])
-                try:
-                    task.append(task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[i], namespace.directory,
-                                                                        namespace.mask[i]))
-                except TypeError:
-                    task.append(task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[i], namespace.directory,
-                                                                        namespace.mask))
-
-            task[0].multiple_visualize_data(task)
-            task[0].multiple_top_n(task)
-
-    else:
-        data, type_task = read_data(namespace.file[0])
-        try:
-            task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0],
-                                                                    namespace.directory, namespace.mask[0])
-        except TypeError:
-            task = task_factory.MetricAnalysisFactory().create_task(type_task, data, namespace.file[0],
-                                                                    namespace.directory, namespace.mask)
-
-        mg.MainMenu(task)
-
+    GUI_main.MainMenu(namespace.file, namespace.directory, namespace.mask, namespace.true_mask)
 
 
 if __name__ == '__main__':

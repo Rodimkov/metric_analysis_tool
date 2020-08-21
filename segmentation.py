@@ -8,8 +8,8 @@ import warnings
 
 class Segmentation(MetricAnalysis):
 
-    def __init__(self, type_task, data, file_name, directory, mask):
-        super().__init__(type_task, data, file_name, directory, mask)
+    def __init__(self, type_task, data, file_name, directory, mask, true_mask):
+        super().__init__(type_task, data, file_name, directory, mask, true_mask)
 
         self.identifier = OrderedDict()
         self.index = []
@@ -40,6 +40,15 @@ class Segmentation(MetricAnalysis):
 
             self.segmentation_colors = cv2.cvtColor(self.segmentation_colors, cv2.COLOR_HSV2BGR)
             self.segmentation_colors = np.resize(self.segmentation_colors, new_shape=(len(self.label_map), 3))
+            temp = np.zeros((len(self.label_map), 3))
+            for i in range(len(self.label_map)):
+                if not i % 2:
+                    temp[i] = self.segmentation_colors[i]
+                else:
+                    temp[i] = self.segmentation_colors[-i]
+
+            temp = temp.astype(np.uint8)
+            self.segmentation_colors = temp
 
     def validate(self):
         super().validate()
@@ -76,7 +85,7 @@ class Segmentation(MetricAnalysis):
             for j in range(cm.shape[0]):
                 text[i, j] = "{0:.2f}".format(cm_prob[i, j])
 
-        sns.heatmap(cm_prob, cmap="YlGnBu", annot=text, fmt='', ax=ax)
+        sns.heatmap(cm_prob, cmap="YlGnBu", annot=text, fmt='', ax=ax, cbar=False)
 
         ax.set_title("Confusion matrix")
 
@@ -84,7 +93,20 @@ class Segmentation(MetricAnalysis):
         ax.set_ylabel("annotation label")
         return ax
 
-    def plot_image(self, image, mask):
+    def apply_color(self, image, color_mask, mask):
+        for i in range((self.segmentation_colors.shape[0])):
+            color_mask[:, :, 0] = np.where((mask == i),
+                                           self.segmentation_colors[i][0], color_mask[:, :, 0])
+            color_mask[:, :, 1] = np.where((mask == i),
+                                           self.segmentation_colors[i][1], color_mask[:, :, 1])
+            color_mask[:, :, 2] = np.where((mask == i),
+                                           self.segmentation_colors[i][2], color_mask[:, :, 2])
+
+        image = cv2.addWeighted(image, 1.0, color_mask, 0.7, 0)
+
+        return image
+
+    def plot_mask(self, image, mask):
         if len(mask.shape) == 3 and mask.shape[0] != 1:
             mask = np.argmax(mask, axis=0).astype(np.uint8)
         if mask.shape[0] == 1:
@@ -92,26 +114,24 @@ class Segmentation(MetricAnalysis):
 
         mask = mask.astype(np.uint8)
         image = cv2.resize(image, (mask.shape[1], mask.shape[0]))
-
         color_mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-        for temp in range((self.segmentation_colors.shape[0])):
-            color_mask[:, :, 0] = np.where((mask == temp),
-                                           self.segmentation_colors[temp][0], color_mask[:, :, 0])
-            color_mask[:, :, 1] = np.where((mask == temp),
-                                           self.segmentation_colors[temp][1], color_mask[:, :, 1])
-            color_mask[:, :, 2] = np.where((mask == temp),
-                                           self.segmentation_colors[temp][2], color_mask[:, :, 2])
+        image = self.apply_color( image, color_mask, mask)
+        return image
 
-        image = cv2.addWeighted(image, 1.0, color_mask, 0.7, 0)
-
+    def plot_image(self, image, mask):
+        color_mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+        image = self.apply_color(image, mask, color_mask)
         return image
 
     def _visualize_data(self, name):
-        mask = np.load(self.mask + self.predicted_mask[name], allow_pickle=True)
         image = cv2.imread(self.picture_directory + name)
-        print(image.shape)
 
-        image = self.plot_image(image, mask)
+        if self.flag_annotation:
+            mask = cv2.imread(self.directory_true_mask + name)
+            image = self.plot_image(image, mask)
+        if self.flag_prediction:
+            mask = np.load(self.mask + self.predicted_mask[name], allow_pickle=True)
+            image = self.plot_mask(image, mask)
         return image
 
     def _top_n(self, n=10):
@@ -136,10 +156,14 @@ class Segmentation(MetricAnalysis):
             warnings.warn("in file {} no image {}".format(self.set_task[1].file, name))
         else:
             for i, task in enumerate(self.set_task):
-                mask = np.load(task.mask + task.predicted_mask[name], allow_pickle=True)
                 image = cv2.imread(task.picture_directory + name)
                 prediction.append(image.copy())
-                prediction[i] = task.plot_image(prediction[i], mask)
+                if self.flag_annotation:
+                    mask = cv2.imread(task.directory_true_mask + name)
+                    prediction[i] = task.plot_image(image, mask)
+                if self.flag_prediction:
+                    mask = np.load(task.mask + task.predicted_mask[name], allow_pickle=True)
+                    prediction[i] = task.plot_mask(image, mask)
 
         return prediction
 

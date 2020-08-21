@@ -10,8 +10,8 @@ import warnings
 
 class GUI(Classification):
 
-    def __init__(self, type_task, data, file_name, directory, mask):
-        super().__init__(type_task, data, file_name, directory, mask)
+    def __init__(self, type_task, data, file_name, directory, mask, true_mask):
+        super().__init__(type_task, data, file_name, directory, mask, true_mask)
         self.size_acc_changes = 100
 
     def visualize_data(self):
@@ -36,8 +36,8 @@ class GUI(Classification):
     def info(self):
         name = self.index_image[self.counter % self.size]
         text_name = name
-        if len(text_name) > 28:
-            text_name = text_name[:28] + '\n' + text_name[28:]
+        if len(text_name) > 13:
+            text_name = text_name[:13] + '\n' + text_name[13:]
 
         pred_label = self.label_map.get(str(self.prediction_label[name]))
         true_label = self.label_map.get(str(self.annotation_label[name]))
@@ -115,7 +115,9 @@ class GUI(Classification):
 
         self.message = tk.StringVar()
         tk.Label(master=self.frame_bot, height=1, width=15, text="window size = ").pack(side=tk.LEFT, pady=10)
-        tk.Entry(master=self.frame_bot, textvariable=self.message, width=7).pack(side=tk.LEFT, pady=10)
+        message_entry = tk.Entry(master=self.frame_bot, textvariable=self.message, width=7)
+        message_entry.pack(side=tk.LEFT, pady=10)
+        message_entry.insert(tk.END, str(self.size_acc_changes))
 
         self.frame_plot = tk.Frame(self.master, width=800, height=800)
         self.frame_plot.pack(fill='both', expand=True)
@@ -175,8 +177,8 @@ class GUI(Classification):
     def multiple_info(self):
         name = self.index_image[self.counter % self.size]
         text_name = name
-        if len(text_name) > 28:
-            text_name = text_name[:28] + '\n' + text_name[28:]
+        if len(text_name) > 13:
+            text_name = text_name[:13] + '\n' + text_name[13:]
 
         if not self.set_task[1].identifier.get(name, []):
             warnings.warn("in file {} no image {}".format(self.set_task[1].file, name))
@@ -193,12 +195,12 @@ class GUI(Classification):
         true_label = "prediction class in 2 file: {}".format(true_label)
         value_label_true = "prediction score in 1 file: {}".format(np.around(true_value, 3))
 
-        tk.Label(self.frame_for_info, height=2, width=45, text="picture name: {}".format(text_name)).grid(row=0, column=0,
+        tk.Label(self.frame_for_info, height=2, width=30, text="picture name: {}".format(text_name)).grid(row=0, column=0,
                                                                                                      padx=10, pady=10)
-        tk.Label(self.frame_for_info, height=1, width=45, text=pred_label).grid(row=1, column=0, padx=10, pady=10)
-        tk.Label(self.frame_for_info, height=1, width=45, text=true_label).grid(row=2, column=0, padx=10, pady=10)
-        tk.Label(self.frame_for_info, height=1, width=45, text=value_label_pred).grid(row=3, column=0, padx=10, pady=10)
-        tk.Label(self.frame_for_info, height=1, width=45, text=value_label_true).grid(row=4, column=0, padx=10, pady=10)
+        tk.Label(self.frame_for_info, height=1, width=30, text=pred_label).grid(row=1, column=0, padx=10, pady=10)
+        tk.Label(self.frame_for_info, height=1, width=30, text=true_label).grid(row=2, column=0, padx=10, pady=10)
+        tk.Label(self.frame_for_info, height=1, width=30, text=value_label_pred).grid(row=3, column=0, padx=10, pady=10)
+        tk.Label(self.frame_for_info, height=1, width=30, text=value_label_true).grid(row=4, column=0, padx=10, pady=10)
 
     def multiple_top_n(self, set_task):
         self.master = tk.Toplevel()
@@ -240,5 +242,3 @@ class GUI(Classification):
         self.next(self._multiple_visualize_data, self.multiple_info)
 
         self.movement_buttons(self._multiple_visualize_data, self.multiple_info)
-
-

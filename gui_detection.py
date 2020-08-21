@@ -9,10 +9,12 @@ import matplotlib.pyplot as plt
 
 
 class GUI(Detection):
-    def __init__(self, type_task, data, file_name, directory, mask):
-        super().__init__(type_task, data, file_name, directory, mask)
+    def __init__(self, type_task, data, file_name, directory, mask, true_mask):
+        super().__init__(type_task, data, file_name, directory, mask, true_mask)
         self.threshold_scores = 0.5
         self.size_acc_changes = 100
+        self.flag_prediction = False
+        self.flag_annotation = False
 
     def visualize_data(self):
         self.counter = -1
@@ -33,30 +35,56 @@ class GUI(Detection):
 
         self.movement_buttons(self._visualize_data, self.info)
 
-    def set_threshold(self):
+    def set_threshold(self, visualize_data, info):
         self.threshold_scores = float(self.message.get())
         self.counter -= 1
 
-        self.next(self._visualize_data, self.info)
+        self.next(visualize_data, info)
+
+    def applied_masks(self, visualize_data, info):
+        self.counter -= 1
+        self.flag_prediction = self.prediction_state.get()
+        self.flag_annotation = self.annotation_state.get()
+        self.next(visualize_data, info)
 
     def info(self):
-        name = self.index_image[self.counter]
+        name = self.index_image[self.counter % self.size]
         text_name = name
-        if len(text_name) > 28:
-            text_name = text_name[:28] + '\n' + text_name[28:]
+        if len(text_name) > 13:
+            text_name = text_name[:13] + '\n' + text_name[13:]
+
+        self.frame_box = tk.Frame(self.frame_for_info, padx=25, pady=2)
+        self.frame_box.grid(row=0, column=0, padx=10, pady=10)
 
         self.frame_top = tk.Frame(self.frame_for_info, padx=25, pady=2)
-        self.frame_top.grid(row=0, column=0, padx=10, pady=10)
+        self.frame_top.grid(row=1, column=0, padx=10, pady=10)
+
+        self.frame_mid = tk.Frame(self.frame_for_info, padx=25, pady=2)
+        self.frame_mid.grid(row=2, column=0, padx=10, pady=10)
 
         self.frame_bot = tk.Frame(self.frame_for_info, padx=25, pady=2)
-        self.frame_bot.grid(row=1, column=0, padx=10, pady=10)
+        self.frame_bot.grid(row=3, column=0, padx=10, pady=10)
 
-        tk.Label(self.frame_top, height=2, width=45, text="picture name: {}".format(text_name)).pack(side=tk.TOP,
+        self.annotation_state = tk.BooleanVar()
+        self.annotation_state.set(self.flag_annotation)
+        chk = tk.Checkbutton(self.frame_box, text='annotation box', var=self.annotation_state)
+        chk.pack(side=tk.LEFT, pady=10)
+
+        self.prediction_state = tk.BooleanVar()
+        self.prediction_state.set(self.flag_prediction)
+        chk = tk.Checkbutton(self.frame_box, text='prediction box', var=self.prediction_state)
+        chk.pack(side=tk.LEFT, pady=10)
+
+        tk.Button(self.frame_top, text="Change applied box",
+                        command=lambda: self.applied_masks(self._visualize_data, self.info)).pack()
+
+        tk.Label(self.frame_mid, height=2, width=30, text="picture name: {}".format(text_name)).pack(side=tk.TOP,
                                                                                                      pady=10)
-        tk.Label(self.frame_top, height=1, width=30, text="threshold score").pack(side=tk.TOP, pady=10)
+        tk.Label(self.frame_mid, height=1, width=30, text="threshold score").pack(side=tk.TOP)
 
-        message_button = tk.Button(self.frame_bot, text="Change value", command=self.set_threshold)
-        message_button.pack(side=tk.LEFT, pady=10, padx=25)
+        message_button = tk.Button(self.frame_bot, text="Change value",
+                                   command=lambda: self.set_threshold(self._visualize_data, self.info))
+        message_button.pack(side=tk.LEFT, pady=10, padx=20)
 
         self.message = tk.StringVar()
         message_entry = tk.Entry(self.frame_bot, textvariable=self.message, width=10)
@@ -124,7 +152,9 @@ class GUI(Detection):
 
         self.message = tk.StringVar()
         tk.Label(master=self.frame_bot, height=1, width=15, text="window size = ").pack(side=tk.LEFT, pady=10)
-        tk.Entry(master=self.frame_bot, textvariable=self.message, width=7).pack(side=tk.LEFT, pady=10)
+        message_entry = tk.Entry(master=self.frame_bot, textvariable=self.message, width=7)
+        message_entry.pack(side=tk.LEFT, pady=10)
+        message_entry.insert(tk.END, str(self.size_acc_changes))
 
         self.frame_plot = tk.Frame(self.master, width=800, height=800)
         self.frame_plot.pack(fill='both', expand=True)
@@ -176,10 +206,10 @@ class GUI(Detection):
         self.movement_buttons(self._multiple_visualize_data, self.multiple_info)
 
     def multiple_info(self):
-        name = self.index_image[self.counter]
+        name = self.index_image[self.counter % self.size]
         text_name = name
-        if len(text_name) > 28:
-            text_name = text_name[:28] + '\n' + text_name[28:]
+        if len(text_name) > 13:
+            text_name = text_name[:13] + '\n' + text_name[13:]
 
         self.frame_top = tk.Frame(self.frame_for_info, padx=25, pady=2)
         self.frame_top.grid(row=0, column=0, padx=10, pady=10)
@@ -187,22 +217,33 @@ class GUI(Detection):
         self.frame_bot = tk.Frame(self.frame_for_info, padx=25, pady=2)
         self.frame_bot.grid(row=1, column=0, padx=10, pady=10)
 
-        tk.Label(self.frame_top, height=2, width=45, text="picture name: {}".format(text_name)).pack(side=tk.TOP,
+        self.annotation_state = tk.BooleanVar()
+        self.annotation_state.set(self.flag_annotation)
+        chk = tk.Checkbutton(self.frame_top, text='annotation box', var=self.annotation_state)
+        chk.pack(side=tk.TOP, pady=10)
+
+        self.prediction_state = tk.BooleanVar()
+        self.prediction_state.set(self.flag_prediction)
+        chk = tk.Checkbutton(self.frame_top, text='prediction box', var=self.prediction_state)
+        chk.pack(side=tk.TOP, pady=10)
+
+        tk.Button(self.frame_top, text="GO",
+                  command=lambda: self.applied_masks(self._multiple_visualize_data, self.multiple_info)).pack(
+            side=tk.TOP, pady=10)
+
+        tk.Label(self.frame_top, height=2, width=30, text="picture name: {}".format(text_name)).pack(side=tk.TOP,
                                                                                                      pady=10)
         tk.Label(self.frame_top, height=1, width=30, text="threshold score").pack(side=tk.TOP, pady=10)
 
-        message_button = tk.Button(self.frame_bot, text="Change value", command=self.set_threshold)
+        message_button = tk.Button(self.frame_bot, text="Change value",
+                                   command=lambda: self.set_threshold(self._multiple_visualize_data,
+                                                                      self.multiple_info))
         message_button.pack(side=tk.LEFT, pady=10, padx=25)
 
         self.message = tk.StringVar()
         message_entry = tk.Entry(self.frame_bot, textvariable=self.message, width=10)
         message_entry.insert(tk.END, str(self.threshold_scores))
         message_entry.pack(side=tk.LEFT, pady=10)
-
-    def multiple_set_threshold(self):
-        self.threshold_scores = float(self.message.get())
-        self.counter -= 1
-        self.next(self._multiple_visualize_data, self.multiple_info)
 
     def multiple_top_n(self, set_task):
         self.master = tk.Toplevel()

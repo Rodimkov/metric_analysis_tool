@@ -18,8 +18,9 @@ def read_data(json_file):
 
 
 class MainMenu(object):
-    def __init__(self, file_name, directory, mask):
+    def __init__(self, file_name, directory, mask, true_mask):
         self.master = tk.Tk()
+
         self.master.title("Tool for visualizing")
         self.master.geometry("300x220+300+300")
         self.master.resizable(width=False, height=False)
@@ -29,15 +30,17 @@ class MainMenu(object):
 
         if len(file_name) == 1:
             data, name = read_data(file_name[0])
-            self.normal_mode(name, data, file_name[0], directory, mask[0])
+            self.normal_mode(name, data, file_name[0], directory, mask[0], true_mask)
         if len(file_name) == 2:
             task = []
             for i in range(len(file_name)):
                 data, name = read_data(file_name[i])
-                task.append(self.create_task(name, data, file_name[i], directory, mask[i]))
+                task.append(self.create_task(name, data, file_name[i], directory, mask[i], true_mask))
+                task[i].set_winwow_size(self.master.winfo_screenwidth(), self.master.winfo_screenheight())
+
             self.compare_mode(task)
 
-    def normal_mode(self, name, data, file_name, directory, mask):
+    def normal_mode(self, name, data, file_name, directory, mask, true_mask):
         label_task = "type task: {}".format(name)
         tk.Label(self.frame, text=label_task).grid(row=0, column=0, padx=10, pady=10)
 
@@ -50,8 +53,8 @@ class MainMenu(object):
         tk.Button(self.frame, text="metric", width=12,
                   command=self.metric).grid(row=3, column=0, padx=10, pady=10)
 
-        self.task = self.create_task(name, data, file_name, directory, mask)
-
+        self.task = self.create_task(name, data, file_name, directory, mask, true_mask)
+        self.task.set_winwow_size( self.master.winfo_screenwidth(), self.master.winfo_screenheight())
         tk.mainloop()
 
     def compare_mode(self, task):
@@ -68,13 +71,13 @@ class MainMenu(object):
         tk.mainloop()
 
     @staticmethod
-    def create_task(name, data, file_name, directory, mask):
+    def create_task(name, data, file_name, directory, mask, true_mask):
         type_task = {
             "classification": gui_classification.GUI,
             "detection": gui_detection.GUI,
             "segmentation": gui_segmentation.GUI
         }
-        return type_task[name](name, data, file_name, directory, mask)
+        return type_task[name](name, data, file_name, directory, mask, true_mask)
 
     def visualize_data(self):
         obj = self.task.visualize_data()

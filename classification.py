@@ -7,8 +7,8 @@ import warnings
 
 class Classification(MetricAnalysis):
 
-    def __init__(self, type_task, data, file_name, directory, mask):
-        super().__init__(type_task, data, file_name, directory, mask)
+    def __init__(self, type_task, data, file_name, directory, mask, true_mask):
+        super().__init__(type_task, data, file_name, directory, mask, true_mask)
 
         self.identifier = OrderedDict()
         self.index = []
@@ -89,7 +89,8 @@ class Classification(MetricAnalysis):
     def _visualize_data(self, name):
 
         image = cv2.imread(self.picture_directory + name)
-
+        if image is None:
+            raise KeyError("in directory {} no image {}".format(self.picture_directory, name))
         return image
 
     def _top_n(self, n=10):
@@ -157,6 +158,8 @@ class Classification(MetricAnalysis):
     def _multiple_visualize_data(self, name):
         image = cv2.imread(self.set_task[0].picture_directory + name)
 
+        if image is None:
+            raise KeyError("in directory {} no image {}".format(self.picture_directory, name))
         return image
 
     @staticmethod

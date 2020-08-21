@@ -8,11 +8,12 @@ import numpy as np
 
 class MetricAnalysis(ABC):
 
-    def __init__(self, type_task, data, file_name, directory, mask):
+    def __init__(self, type_task, data, file_name, directory, mask, true_mask):
         self.picture_directory = directory
         self.mask = mask
         self.file = file_name
         self.type_task = type_task
+        self.directory_true_mask = true_mask
 
         self.data = data
 
@@ -21,6 +22,10 @@ class MetricAnalysis(ABC):
         self.reports = None
         self.report_type = None
         self.label_map = None
+
+    def set_winwow_size(self, width, height):
+        self.winwow_width = int(width / 1.8)
+        self.winwow_height = int(height / 1.5)
 
     def parser(self):
         self.processing_info = self.data.get("processing_info")
@@ -32,7 +37,7 @@ class MetricAnalysis(ABC):
         for name in sorted(self.dataset_meta.get("label_map").keys()):
             self.label_map[name] = self.dataset_meta.get("label_map").get(name)
 
-        #for i in range(1000):
+        # for i in range(1000):
         #   self.label_map[str(i)] = str(i)
 
         self.size_dataset = len(self.reports)
@@ -49,7 +54,7 @@ class MetricAnalysis(ABC):
         if not 'report_type' in self.data:
             report_error.append('report type')
 
-        #if not 'label_map' in self.data.get("dataset_meta"):
+        # if not 'label_map' in self.data.get("dataset_meta"):
         #    report_error.append('label map')
 
         if report_error:
@@ -68,25 +73,49 @@ class MetricAnalysis(ABC):
         b_open.grid(row=0, column=3, padx=10, pady=10)
 
     def open_image(self, visual_method, info_method):
-        import os
+        import os  # полумера так как если путь относительный но с папкой надо вычисть свою директорию
         from tkinter import filedialog as fd
 
         file_name = fd.askopenfilename(title="Select file")
         file_name = os.path.basename(file_name)
+        temp = str(os.path.abspath("GUI_main.py"))[:1]
         self.counter = np.where(np.array(self.index) == file_name)[0][0] - 1
         self.next(visual_method, info_method)
+
+    def image_resize(self, image, coeff=1):
+        im_scale = min(self.winwow_height / image.shape[0], self.winwow_width / image.shape[1]) / coeff
+
+        if im_scale > 5:
+            im_scale = 5
+        image = cv2.resize(image, (int(image.shape[1] * im_scale), int(image.shape[0] * im_scale)))
+        return image
 
     def next(self, visual_method, info_method):
         self.counter += 1
 
         image = visual_method((self.index_image[self.counter % self.size]))
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        image = cv2.resize(image, (512, 512))
+        if isinstance(image, list):
+            self.image = []
+            images = image
+            for i, image in enumerate(images):
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                image = self.image_resize(image, coeff=2)
 
-        image = Image.fromarray(image)
-        self.image = ImageTk.PhotoImage(image=image)
-        image_label = tk.Label(self.frame_for_image, image=self.image)
-        image_label.grid(row=0, column=0, padx=50, pady=10)
+                image = Image.fromarray(image)
+                self.image.append(ImageTk.PhotoImage(image=image))
+                image_label = tk.Label(self.frame_for_image,  bg='white', image=self.image[i], width=int(self.winwow_width/2),
+                                   height=int(self.winwow_height/2))
+                image_label.grid(row=0, column=i, padx=50, pady=10)
+
+        else:
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            image = self.image_resize(image)
+
+            image = Image.fromarray(image)
+            self.image = ImageTk.PhotoImage(image=image)
+            image_label = tk.Label(self.frame_for_image, image=self.image, bg='white', width=self.winwow_width,
+                                   height=self.winwow_height)
+            image_label.grid(row=0, column=0, padx=50, pady=10)
 
         info_method()
 
@@ -94,13 +123,29 @@ class MetricAnalysis(ABC):
         self.counter -= 1
 
         image = visual_method((self.index_image[self.counter % self.size]))
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        image = cv2.resize(image, (512, 512))
+        if isinstance(image, list):
+            self.image = []
+            images = image
+            for i, image in enumerate(images):
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                image = self.image_resize(image, coeff=2)
 
-        image = Image.fromarray(image)
-        self.image = ImageTk.PhotoImage(image=image)
-        image_label = tk.Label(self.frame_for_image, image=self.image)
-        image_label.grid(row=0, column=0, padx=50, pady=10)
+                image = Image.fromarray(image)
+                self.image.append(ImageTk.PhotoImage(image=image))
+                image_label = tk.Label(self.frame_for_image,  bg='white', image=self.image[i], width=int(self.winwow_width/2),
+                                   height=int(self.winwow_height/2))
+
+                image_label.grid(row=0, column=i, padx=50, pady=10)
+
+        else:
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            image = self.image_resize(image)
+
+            image = Image.fromarray(image)
+            self.image = ImageTk.PhotoImage(image=image)
+            image_label = tk.Label(self.frame_for_image, image=self.image, bg='white', width=self.winwow_width,
+                                   height=self.winwow_height)
+            image_label.grid(row=0, column=0, padx=50, pady=10)
 
         info_method()
 
