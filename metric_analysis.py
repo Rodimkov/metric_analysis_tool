@@ -2,9 +2,11 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 import cv2
 import tkinter as tk
+from tkinter import filedialog as fd
 from PIL import Image, ImageTk
 import numpy as np
-
+import os
+import warnings
 
 class MetricAnalysis(ABC):
 
@@ -37,9 +39,6 @@ class MetricAnalysis(ABC):
         for name in sorted(self.dataset_meta.get("label_map").keys()):
             self.label_map[name] = self.dataset_meta.get("label_map").get(name)
 
-        # for i in range(1000):
-        #   self.label_map[str(i)] = str(i)
-
         self.size_dataset = len(self.reports)
 
     def validate(self):
@@ -54,8 +53,8 @@ class MetricAnalysis(ABC):
         if not 'report_type' in self.data:
             report_error.append('report type')
 
-        # if not 'label_map' in self.data.get("dataset_meta"):
-        #    report_error.append('label map')
+        if not 'label_map' in self.data.get("dataset_meta"):
+            report_error.append('label map')
 
         if report_error:
             report_error = ', '.join(report_error)
@@ -73,14 +72,18 @@ class MetricAnalysis(ABC):
         b_open.grid(row=0, column=3, padx=10, pady=10)
 
     def open_image(self, visual_method, info_method):
-        import os  # полумера так как если путь относительный но с папкой надо вычисть свою директорию
-        from tkinter import filedialog as fd
 
         file_name = fd.askopenfilename(title="Select file")
         file_name = os.path.basename(file_name)
-        temp = str(os.path.abspath("GUI_main.py"))[:1]
-        self.counter = np.where(np.array(self.index) == file_name)[0][0] - 1
-        self.next(visual_method, info_method)
+
+        if self.identifier.get('file_name') is None:
+            warnings.warn("""We could not find such a picture in the sent file. Perhaps you have chosen the wrong 
+                          picture, perhaps we are not working correctly with relative paths (if not the names of the 
+                          pictures, but relative paths are specified in the * .json file, then the script may not 
+                          work correctly)""")
+        else:
+            self.counter = np.where(np.array(self.index) == file_name)[0][0] - 1
+            self.next(visual_method, info_method)
 
     def image_resize(self, image, coeff=1):
         im_scale = min(self.winwow_height / image.shape[0], self.winwow_width / image.shape[1]) / coeff
@@ -103,8 +106,9 @@ class MetricAnalysis(ABC):
 
                 image = Image.fromarray(image)
                 self.image.append(ImageTk.PhotoImage(image=image))
-                image_label = tk.Label(self.frame_for_image,  bg='white', image=self.image[i], width=int(self.winwow_width/2),
-                                   height=int(self.winwow_height/2))
+                image_label = tk.Label(self.frame_for_image, bg='white', image=self.image[i],
+                                       width=int(self.winwow_width / 2),
+                                       height=int(self.winwow_height / 2))
                 image_label.grid(row=0, column=i, padx=50, pady=10)
 
         else:
@@ -132,8 +136,9 @@ class MetricAnalysis(ABC):
 
                 image = Image.fromarray(image)
                 self.image.append(ImageTk.PhotoImage(image=image))
-                image_label = tk.Label(self.frame_for_image,  bg='white', image=self.image[i], width=int(self.winwow_width/2),
-                                   height=int(self.winwow_height/2))
+                image_label = tk.Label(self.frame_for_image, bg='white', image=self.image[i],
+                                       width=int(self.winwow_width / 2),
+                                       height=int(self.winwow_height / 2))
 
                 image_label.grid(row=0, column=i, padx=50, pady=10)
 
@@ -150,13 +155,18 @@ class MetricAnalysis(ABC):
         info_method()
 
     @abstractmethod
-    def metrics(self):
+    def _visualize_data(self, name):
         pass
 
     @abstractmethod
-    def visualize_data(self):
+    def _top_n(self, n):
         pass
 
     @abstractmethod
-    def top_n(self, n):
+    def _multiple_visualize_data(self, name):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def _multiple_top_n(set_task, n=10):
         pass

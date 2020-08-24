@@ -1,15 +1,14 @@
+from collections import OrderedDict
+import warnings
 import cv2
 import numpy as np
 from metric_analysis import MetricAnalysis
-from collections import OrderedDict
-import warnings
 
 
 class Classification(MetricAnalysis):
 
     def __init__(self, type_task, data, file_name, directory, mask, true_mask):
         super().__init__(type_task, data, file_name, directory, mask, true_mask)
-
         self.identifier = OrderedDict()
         self.index = []
         self.prediction_label = OrderedDict()
@@ -17,7 +16,9 @@ class Classification(MetricAnalysis):
         self.prediction_scores = OrderedDict()
         self.accuracy_result = OrderedDict()
 
-        # self.validate()
+        self.set_task = None
+
+        self.validate()
         self.parser()
 
     def validate(self):
@@ -77,13 +78,12 @@ class Classification(MetricAnalysis):
     def parser(self):
         super().parser()
 
-        for i, report in enumerate(self.reports):
+        for report in self.reports:
             self.identifier[report["identifier"]] = report["identifier"]
             self.index.append(report["identifier"])
             self.prediction_label[report["identifier"]] = report["prediction_label"]
             self.annotation_label[report["identifier"]] = report["annotation_label"]
             self.prediction_scores[report["identifier"]] = report["prediction_scores"]
-            # self.accuracy_result[report["identifier"]] = report["accuracy@top1_result"]
             self.accuracy_result[report["identifier"]] = report["accuracy_result"]
 
     def _visualize_data(self, name):
@@ -180,7 +180,7 @@ class Classification(MetricAnalysis):
                 scores[name] = set_task[1].prediction_scores[name][set_task[0].prediction_label[name]]
 
         if n > len(position):
-            warnings.warn("""the n value is greater than the number of identical objects in both files, 
+            warnings.warn("""the n value is greater than the number of identical objects in both files,
                             it will be reduced to the size of the dataset""")
             n = len(position)
 

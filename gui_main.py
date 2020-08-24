@@ -1,8 +1,8 @@
 import tkinter as tk
+import json
 import gui_classification
 import gui_detection
 import gui_segmentation
-import json
 
 
 def read_data(json_file):
@@ -17,7 +17,7 @@ def read_data(json_file):
     return data, type_task
 
 
-class MainMenu(object):
+class MainMenu():
     def __init__(self, file_name, directory, mask, true_mask):
         self.master = tk.Tk()
 
@@ -54,7 +54,7 @@ class MainMenu(object):
                   command=self.metric).grid(row=3, column=0, padx=10, pady=10)
 
         self.task = self.create_task(name, data, file_name, directory, mask, true_mask)
-        self.task.set_winwow_size( self.master.winfo_screenwidth(), self.master.winfo_screenheight())
+        self.task.set_winwow_size(self.master.winfo_screenwidth(), self.master.winfo_screenheight())
         tk.mainloop()
 
     def compare_mode(self, task):

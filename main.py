@@ -1,7 +1,7 @@
 import argparse
 import os
 import json
-import GUI_main
+import gui_main
 
 
 def create_parser():
@@ -33,11 +33,9 @@ def file_path(path):
 
 
 def dir_path(path):
-    if os.path.isdir(path):
-        return path
-    else:
+    if not os.path.isdir(path):
         raise argparse.ArgumentTypeError("{} is not a valid path".format(path))
-
+    return path
 
 def read_data(json_file):
     with open(json_file, "r") as read_file:
@@ -58,7 +56,7 @@ def main():
     parser = create_parser()
     namespace = parser.parse_args()
 
-    GUI_main.MainMenu(namespace.file, namespace.directory, namespace.mask, namespace.true_mask)
+    gui_main.MainMenu(namespace.file, namespace.directory, namespace.mask, namespace.true_mask)
 
 
 if __name__ == '__main__':

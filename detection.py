@@ -1,8 +1,9 @@
 import cv2
-from metric_analysis import MetricAnalysis
 import numpy as np
 from collections import OrderedDict
 import warnings
+from metric_analysis import MetricAnalysis
+
 
 
 class Detection(MetricAnalysis):
@@ -19,6 +20,8 @@ class Detection(MetricAnalysis):
         self.average_precision = OrderedDict()
         self.average_precision_picture = OrderedDict()
 
+        self.set_task = None
+        self.threshold_scores = 0.5
         self.validate()
         self.parser()
 
@@ -62,7 +65,7 @@ class Detection(MetricAnalysis):
     def parser(self):
         super().parser()
 
-        for i, report in enumerate(self.reports):
+        for report in self.reports:
             self.identifier[report["identifier"]] = report["identifier"]
             self.index.append(report["identifier"])
             self.per_class_result[report["identifier"]] = report["per_class_result"]
@@ -92,33 +95,11 @@ class Detection(MetricAnalysis):
                 self.average_precision_picture[name] = np.nan
 
     def _top_n(self, n=10):
-        """Highlighting the top worst objects in terms of predictions
-        This tool show four different types of "bad" objects:
-
-        1) Without correct answer: those for which there are annotation, but there is no right answer. Ratio of
-        the number of elements in the annotation to the predicted ones is considered as a metric. Predicting false
-        box two for two annotations is better than predicting two hundred false box for two annotations
-
-        2) Without annotation: those for which there is no annotation. Not sorted.
-
-        3) Precision: ratio of the number of correctly predicted to all predictions. the smallest values are
-        selected. Not stable if there are two correct answers and a lot of erroneous assumptions (such objects will
-        be the worst, despite the low probability of most of the predicted elements). Objects without annotation or
-        objects with no correct predictions are not taken into account.
-
-        4) average precision: is averaged for the picture for each class and the minimum. Objects without annotation
-        or objects with no correct predictions are not taken into account.
-
-        """
-
         if n > self.size_dataset:
             warnings.warn("""value n is greater than the size of the dataset,
                              it will be reduced to the size of the dataset""")
             n = self.size_dataset
 
-        without_correct_answers = OrderedDict()
-        without_annotation = OrderedDict()
-        precision = OrderedDict()
         average_precision_score = OrderedDict()
 
         for name, report in self.per_class_result.items():
@@ -137,22 +118,12 @@ class Detection(MetricAnalysis):
                 if np.sum(report.get(key).get('prediction_matches')) != 0:
                     flag_prediction = True
 
-            if (not flag_prediction) and flag_annotation:
-                mark = len(am) / len(pm)
-                without_correct_answers[name] = mark
-            elif not flag_annotation:
-                without_annotation[name] = name
-            else:
-                tp = np.sum(pm)
-                fp = np.sum(np.logical_not(pm))
-
-                precision[name] = tp / (tp + fp)
+            if flag_prediction and flag_annotation:
                 average_precision_score[name] = self.average_precision_picture[name]
 
-        sort_precision = sorted(precision, key=lambda k: (precision[k]))[:n]
         sort_average_precision = sorted(average_precision_score, key=lambda k: (average_precision_score[k]))[:n]
 
-        return sort_precision
+        return sort_average_precision
 
     def _plot_average_precision_changes(self, ax, k=100):
         precision_change = []
@@ -187,7 +158,7 @@ class Detection(MetricAnalysis):
 
         return image
 
-    def marking_predition(self, image, name, color, threshold_scores):
+    def marking_predict(self, image, name, color, threshold_scores):
         info = self.per_class_result[name]
         for key in info:
 
@@ -216,8 +187,12 @@ class Detection(MetricAnalysis):
 
     def _visualize_data(self, name):
         image = cv2.imread(self.picture_directory + name)
+
+        if image is None:
+            raise KeyError("in directory {} no image {}".format(self.picture_directory, name))
+
         if self.flag_prediction:
-            self.marking_predition(image, name, (255, 0, 0), self.threshold_scores)
+            self.marking_predict(image, name, (255, 0, 0), self.threshold_scores)
         if self.flag_annotation:
             self.marking_annotation(image, name, (0, 0, 255))
 
@@ -225,18 +200,21 @@ class Detection(MetricAnalysis):
 
     def _multiple_visualize_data(self, name):
         image = cv2.imread(self.set_task[0].picture_directory + name)
+
+        if image is None:
+            raise KeyError("in directory {} no image {}".format(self.picture_directory, name))
+
         color = np.zeros((2, 3), np.uint8)
 
         color[0] = np.array([0, 255, 0])
         color[1] = np.array([255, 0, 0])
-
 
         if not self.set_task[1].identifier.get(name, []):
             warnings.warn("in file {} no image {}".format(self.set_task[1].file, name))
         else:
             if self.flag_prediction:
                 for i, task in enumerate(self.set_task):
-                    task.marking_predition(image, name, tuple(color[i]), self.set_task[0].threshold_scores)
+                    task.marking_predict(image, name, tuple(color[i]), self.set_task[0].threshold_scores)
             if self.flag_annotation:
                 self.marking_annotation(image, name, (0, 0, 255))
 
@@ -275,7 +253,7 @@ class Detection(MetricAnalysis):
         )
 
     @staticmethod
-    def _multiple_top_n(set_task, threshold_scores, n=10):
+    def _multiple_top_n(set_task, n=10):
         result = OrderedDict()
         without_answers = OrderedDict()
         for name, report in list(set_task[0].per_class_result.items()):
@@ -288,7 +266,7 @@ class Detection(MetricAnalysis):
                 for key in report.keys():
                     box = []
                     for task in set_task:
-                        count = np.sum(np.array(task.prediction_scores[name][key]) > threshold_scores)
+                        count = np.sum(np.array(task.prediction_scores[name][key]) > set_task[0].threshold_scores)
                         box.append(task.prediction_boxes[name][key][:count])
 
                     similarity_matrix = set_task[0].calculate_similarity_matrix(box[0], box[1])

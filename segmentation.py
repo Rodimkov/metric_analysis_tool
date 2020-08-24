@@ -1,20 +1,21 @@
 import numpy as np
 import cv2
 import os
-from metric_analysis import MetricAnalysis
 from collections import OrderedDict
 import warnings
+from metric_analysis import MetricAnalysis
 
 
 class Segmentation(MetricAnalysis):
 
     def __init__(self, type_task, data, file_name, directory, mask, true_mask):
         super().__init__(type_task, data, file_name, directory, mask, true_mask)
-
         self.identifier = OrderedDict()
         self.index = []
         self.confusion_matrix = OrderedDict()
         self.predicted_mask = OrderedDict()
+
+        self.set_task = None
 
         self.validate()
         self.parser()
@@ -115,7 +116,7 @@ class Segmentation(MetricAnalysis):
         mask = mask.astype(np.uint8)
         image = cv2.resize(image, (mask.shape[1], mask.shape[0]))
         color_mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-        image = self.apply_color( image, color_mask, mask)
+        image = self.apply_color(image, color_mask, mask)
         return image
 
     def plot_image(self, image, mask):
@@ -125,6 +126,9 @@ class Segmentation(MetricAnalysis):
 
     def _visualize_data(self, name):
         image = cv2.imread(self.picture_directory + name)
+
+        if image is None:
+            raise KeyError("in directory {} no image {}".format(self.picture_directory, name))
 
         if self.flag_annotation:
             mask = cv2.imread(self.directory_true_mask + name)
@@ -151,13 +155,17 @@ class Segmentation(MetricAnalysis):
 
     def _multiple_visualize_data(self, name):
         prediction = []
+        image = cv2.imread(self.set_task[0].picture_directory + name)
+
+        if image is None:
+            raise KeyError("in directory {} no image {}".format(self.picture_directory, name))
 
         if not self.set_task[1].identifier.get(name):
             warnings.warn("in file {} no image {}".format(self.set_task[1].file, name))
         else:
             for i, task in enumerate(self.set_task):
-                image = cv2.imread(task.picture_directory + name)
                 prediction.append(image.copy())
+
                 if self.flag_annotation:
                     mask = cv2.imread(task.directory_true_mask + name)
                     prediction[i] = task.plot_image(image, mask)
@@ -182,7 +190,7 @@ class Segmentation(MetricAnalysis):
                     np.diag(set_task[0].confusion_matrix[name]) - np.diag(set_task[1].confusion_matrix[name]))
 
         if n > len(dist):
-            warnings.warn("""the n value is greater than the number of identical objects in both files, 
+            warnings.warn("""the n value is greater than the number of identical objects in both files,
                             it will be reduced to the size of the dataset""")
             n = len(dist)
 

@@ -1,4 +1,3 @@
-from segmentation import Segmentation
 import tkinter as tk
 from PIL import Image, ImageTk
 import cv2
@@ -6,13 +5,20 @@ import numpy as np
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
 import matplotlib.pyplot as plt
+from segmentation import Segmentation
 
 
 class GUI(Segmentation):
     def __init__(self, type_task, data, file_name, directory, mask, true_mask):
         super().__init__(type_task, data, file_name, directory, mask, true_mask)
+        self.master = None
+
         self.flag_prediction = False
         self.flag_annotation = False
+
+        self.counter = None
+        self.index_image = None
+        self.size = None
 
     def visualize_data(self):
         self.counter = -1
@@ -74,15 +80,17 @@ class GUI(Segmentation):
                                                                                                      pady=10)
         self.square_colors = []
         for i, color in enumerate(self.segmentation_colors):
-            square = np.zeros((7,7,3))
-            square[:,:] = color
+            square = np.zeros((7, 7, 3))
+            square[:, :] = color
             square = square.astype(np.uint8)
             square = cv2.cvtColor(square, cv2.COLOR_RGB2BGR)
 
             square = Image.fromarray(square)
             self.square_colors.append(ImageTk.PhotoImage(image=square))
-            tk.Label(self.frame_bot, image=self.square_colors[i]).grid(row=int(i/2), column=2*(i%2), padx=10, pady=3)
-            tk.Label(self.frame_bot, text=self.label_map[str(i)]).grid(row=int(i/2), column=2*(i%2)+1, padx=10, pady=3)
+            tk.Label(self.frame_bot, image=self.square_colors[i]).grid(row=int(i / 2), column=2 * (i % 2), padx=10,
+                                                                       pady=3)
+            tk.Label(self.frame_bot, text=self.label_map[str(i)]).grid(row=int(i / 2), column=2 * (i % 2) + 1, padx=10,
+                                                                       pady=3)
 
     def top_n(self):
         self.master = tk.Toplevel()
@@ -223,15 +231,17 @@ class GUI(Segmentation):
                                                                                                      pady=10)
         self.square_colors = []
         for i, color in enumerate(self.segmentation_colors):
-            square = np.zeros((7,7,3))
-            square[:,:] = color
+            square = np.zeros((7, 7, 3))
+            square[:, :] = color
             square = square.astype(np.uint8)
             square = cv2.cvtColor(square, cv2.COLOR_RGB2BGR)
 
             square = Image.fromarray(square)
             self.square_colors.append(ImageTk.PhotoImage(image=square))
-            tk.Label(self.frame_bot, image=self.square_colors[i]).grid(row=int(i/2), column=2*(i%2), padx=10, pady=3)
-            tk.Label(self.frame_bot, text=self.label_map[str(i)]).grid(row=int(i/2), column=2*(i%2)+1, padx=10, pady=3)
+            tk.Label(self.frame_bot, image=self.square_colors[i]).grid(row=int(i / 2), column=2 * (i % 2), padx=10,
+                                                                       pady=3)
+            tk.Label(self.frame_bot, text=self.label_map[str(i)]).grid(row=int(i / 2), column=2 * (i % 2) + 1, padx=10,
+                                                                       pady=3)
 
     def multiple_top_n(self, set_task):
         self.master = tk.Toplevel()
@@ -260,7 +270,7 @@ class GUI(Segmentation):
         self.master = tk.Toplevel()
         self.master.title("top n for {}".format(self.type_task))
 
-        self.index_image = self.set_task[0]._multiple_top_n(self.set_task, n=self.size)
+        self.index_image = self._multiple_top_n(self.set_task, n=self.size)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)

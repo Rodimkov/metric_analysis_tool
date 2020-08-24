@@ -1,20 +1,23 @@
-from detection import Detection
 import tkinter as tk
-from PIL import Image, ImageTk
-import cv2
-import numpy as np
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
 import matplotlib.pyplot as plt
+from detection import Detection
+
 
 
 class GUI(Detection):
     def __init__(self, type_task, data, file_name, directory, mask, true_mask):
         super().__init__(type_task, data, file_name, directory, mask, true_mask)
-        self.threshold_scores = 0.5
+        self.master = None
+
         self.size_acc_changes = 100
         self.flag_prediction = False
         self.flag_annotation = False
+
+        self.counter = None
+        self.index_image = None
+        self.size = None
 
     def visualize_data(self):
         self.counter = -1
@@ -76,7 +79,7 @@ class GUI(Detection):
         chk.pack(side=tk.LEFT, pady=10)
 
         tk.Button(self.frame_top, text="Change applied box",
-                        command=lambda: self.applied_masks(self._visualize_data, self.info)).pack()
+                  command=lambda: self.applied_masks(self._visualize_data, self.info)).pack()
 
         tk.Label(self.frame_mid, height=2, width=30, text="picture name: {}".format(text_name)).pack(side=tk.TOP,
                                                                                                      pady=10)
@@ -211,25 +214,31 @@ class GUI(Detection):
         if len(text_name) > 13:
             text_name = text_name[:13] + '\n' + text_name[13:]
 
+        self.frame_box = tk.Frame(self.frame_for_info, padx=25, pady=2)
+        self.frame_box.grid(row=0, column=0, padx=10, pady=10)
+
         self.frame_top = tk.Frame(self.frame_for_info, padx=25, pady=2)
-        self.frame_top.grid(row=0, column=0, padx=10, pady=10)
+        self.frame_top.grid(row=1, column=0, padx=10, pady=10)
+
+        self.frame_mid = tk.Frame(self.frame_for_info, padx=25, pady=2)
+        self.frame_mid.grid(row=2, column=0, padx=10, pady=10)
 
         self.frame_bot = tk.Frame(self.frame_for_info, padx=25, pady=2)
-        self.frame_bot.grid(row=1, column=0, padx=10, pady=10)
+        self.frame_bot.grid(row=3, column=0, padx=10, pady=10)
 
         self.annotation_state = tk.BooleanVar()
         self.annotation_state.set(self.flag_annotation)
-        chk = tk.Checkbutton(self.frame_top, text='annotation box', var=self.annotation_state)
-        chk.pack(side=tk.TOP, pady=10)
+        chk = tk.Checkbutton(self.frame_box, text='annotation box', var=self.annotation_state)
+        chk.pack(side=tk.LEFT, pady=10)
 
         self.prediction_state = tk.BooleanVar()
         self.prediction_state.set(self.flag_prediction)
-        chk = tk.Checkbutton(self.frame_top, text='prediction box', var=self.prediction_state)
-        chk.pack(side=tk.TOP, pady=10)
+        chk = tk.Checkbutton(self.frame_box, text='prediction box', var=self.prediction_state)
+        chk.pack(side=tk.LEFT, pady=10)
 
-        tk.Button(self.frame_top, text="GO",
-                  command=lambda: self.applied_masks(self._multiple_visualize_data, self.multiple_info)).pack(
-            side=tk.TOP, pady=10)
+        tk.Button(self.frame_top, text="Change applied box",
+                  command=lambda: self.applied_masks(self._multiple_visualize_data, self.multiple_info)).pack(side=tk.TOP,
+                                                                                                              pady=10)
 
         tk.Label(self.frame_top, height=2, width=30, text="picture name: {}".format(text_name)).pack(side=tk.TOP,
                                                                                                      pady=10)
@@ -284,7 +293,7 @@ class GUI(Detection):
         self.master = tk.Toplevel()
         self.master.title("Visualize data for {}".format(self.type_task))
 
-        self.index_image = self.set_task[0]._multiple_top_n(self.set_task, self.threshold_scores, n=self.size)
+        self.index_image = self._multiple_top_n(self.set_task, n=self.size)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)

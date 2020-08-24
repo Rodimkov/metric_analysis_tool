@@ -1,18 +1,23 @@
-from classification import Classification
 import tkinter as tk
-from PIL import Image, ImageTk
-import cv2
+import warnings
 import numpy as np
 from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
 import matplotlib.pyplot as plt
-import warnings
+from classification import Classification
+
 
 class GUI(Classification):
 
     def __init__(self, type_task, data, file_name, directory, mask, true_mask):
         super().__init__(type_task, data, file_name, directory, mask, true_mask)
+        self.master = None
+
         self.size_acc_changes = 100
+
+        self.counter = None
+        self.index_image = None
+        self.size = None
 
     def visualize_data(self):
         self.counter = -1
@@ -47,8 +52,10 @@ class GUI(Classification):
         true_label = "annotation class: {}".format(true_label)
         value_label = "prediction score: {}".format(np.around(value, 3))
 
-        tk.Label(self.frame_for_info, height=2, width=30, text="picture name: {}".format(text_name)).grid(row=0, column=0,
-                                                                                                     padx=10, pady=10)
+        tk.Label(self.frame_for_info, height=2, width=30, text="picture name: {}".format(text_name)).grid(row=0,
+                                                                                                          column=0,
+                                                                                                          padx=10,
+                                                                                                          pady=10)
         tk.Label(self.frame_for_info, height=1, width=30, text=pred_label).grid(row=1, column=0, padx=10, pady=10)
         tk.Label(self.frame_for_info, height=1, width=30, text=true_label).grid(row=2, column=0, padx=10, pady=10)
         tk.Label(self.frame_for_info, height=1, width=30, text=value_label).grid(row=3, column=0, padx=10, pady=10)
@@ -195,8 +202,10 @@ class GUI(Classification):
         true_label = "prediction class in 2 file: {}".format(true_label)
         value_label_true = "prediction score in 1 file: {}".format(np.around(true_value, 3))
 
-        tk.Label(self.frame_for_info, height=2, width=30, text="picture name: {}".format(text_name)).grid(row=0, column=0,
-                                                                                                     padx=10, pady=10)
+        tk.Label(self.frame_for_info, height=2, width=30, text="picture name: {}".format(text_name)).grid(row=0,
+                                                                                                          column=0,
+                                                                                                          padx=10,
+                                                                                                          pady=10)
         tk.Label(self.frame_for_info, height=1, width=30, text=pred_label).grid(row=1, column=0, padx=10, pady=10)
         tk.Label(self.frame_for_info, height=1, width=30, text=true_label).grid(row=2, column=0, padx=10, pady=10)
         tk.Label(self.frame_for_info, height=1, width=30, text=value_label_pred).grid(row=3, column=0, padx=10, pady=10)
@@ -230,7 +239,7 @@ class GUI(Classification):
         self.master = tk.Toplevel()
         self.master.title("top n for {}".format(self.type_task))
 
-        self.index_image = self.set_task[0]._multiple_top_n(self.set_task, n=self.size)
+        self.index_image = self._multiple_top_n(self.set_task, n=self.size)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)
