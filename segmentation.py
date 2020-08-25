@@ -94,7 +94,7 @@ class Segmentation(MetricAnalysis):
         ax.set_ylabel("annotation label")
         return ax
 
-    def apply_color(self, image, color_mask, mask):
+    def apply_mask(self, image, color_mask, mask):
         for i in range((self.segmentation_colors.shape[0])):
             color_mask[:, :, 0] = np.where((mask == i),
                                            self.segmentation_colors[i][0], color_mask[:, :, 0])
@@ -116,12 +116,12 @@ class Segmentation(MetricAnalysis):
         mask = mask.astype(np.uint8)
         image = cv2.resize(image, (mask.shape[1], mask.shape[0]))
         color_mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-        image = self.apply_color(image, color_mask, mask)
+        image = self.apply_mask(image, color_mask, mask)
         return image
 
     def plot_image(self, image, mask):
         color_mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-        image = self.apply_color(image, mask, color_mask)
+        image = self.apply_mask(image, mask, color_mask)
         return image
 
     def _visualize_data(self, name):

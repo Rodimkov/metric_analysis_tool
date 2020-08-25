@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from detection import Detection
 
 
-
 class GUI(Detection):
     def __init__(self, type_task, data, file_name, directory, mask, true_mask):
         super().__init__(type_task, data, file_name, directory, mask, true_mask)
@@ -120,6 +119,7 @@ class GUI(Detection):
         self.master.title("Top N for {}".format(self.type_task))
 
         self.index_image = self._top_n(n=self.size)
+        self.log_top_n(self.index_image)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)
@@ -211,8 +211,8 @@ class GUI(Detection):
     def multiple_info(self):
         name = self.index_image[self.counter % self.size]
         text_name = name
-        if len(text_name) > 13:
-            text_name = text_name[:13] + '\n' + text_name[13:]
+        if len(text_name) > 15:
+            text_name = text_name[:15] + '\n' + text_name[15:]
 
         self.frame_box = tk.Frame(self.frame_for_info, padx=25, pady=2)
         self.frame_box.grid(row=0, column=0, padx=10, pady=10)
@@ -237,10 +237,11 @@ class GUI(Detection):
         chk.pack(side=tk.LEFT, pady=10)
 
         tk.Button(self.frame_top, text="Change applied box",
-                  command=lambda: self.applied_masks(self._multiple_visualize_data, self.multiple_info)).pack(side=tk.TOP,
-                                                                                                              pady=10)
+                  command=lambda: self.applied_masks(self._multiple_visualize_data, self.multiple_info)).pack(
+            side=tk.TOP,
+            pady=10)
 
-        tk.Label(self.frame_top, height=2, width=30, text="picture name: {}".format(text_name)).pack(side=tk.TOP,
+        tk.Label(self.frame_top, height=2, width=35, text="picture name: {}".format(text_name)).pack(side=tk.TOP,
                                                                                                      pady=10)
         tk.Label(self.frame_top, height=1, width=30, text="threshold score").pack(side=tk.TOP, pady=10)
 
@@ -294,6 +295,7 @@ class GUI(Detection):
         self.master.title("Visualize data for {}".format(self.type_task))
 
         self.index_image = self._multiple_top_n(self.set_task, n=self.size)
+        self.log_top_n(self.index_image)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)

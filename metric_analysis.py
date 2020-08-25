@@ -8,6 +8,7 @@ import numpy as np
 import os
 import warnings
 
+
 class MetricAnalysis(ABC):
 
     def __init__(self, type_task, data, file_name, directory, mask, true_mask):
@@ -74,9 +75,10 @@ class MetricAnalysis(ABC):
     def open_image(self, visual_method, info_method):
 
         file_name = fd.askopenfilename(title="Select file")
-        file_name = os.path.basename(file_name)
+        file_name = file_name[file_name.find(self.picture_directory):]
+        file_name = file_name.replace(self.picture_directory,"")
 
-        if self.identifier.get('file_name') is None:
+        if self.identifier.get(file_name) is None:
             warnings.warn("""We could not find such a picture in the sent file. Perhaps you have chosen the wrong 
                           picture, perhaps we are not working correctly with relative paths (if not the names of the 
                           pictures, but relative paths are specified in the * .json file, then the script may not 
@@ -153,6 +155,11 @@ class MetricAnalysis(ABC):
             image_label.grid(row=0, column=0, padx=50, pady=10)
 
         info_method()
+
+    def log_top_n(self, names):
+        import logging
+        logging.basicConfig(level=logging.INFO, format='%(message)s')
+        logging.info("Top {} picture: {}".format(len(names), " ".join(names)))
 
     @abstractmethod
     def _visualize_data(self, name):

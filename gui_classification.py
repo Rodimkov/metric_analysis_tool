@@ -87,6 +87,7 @@ class GUI(Classification):
         self.master.title("Top N for {}".format(self.type_task))
 
         self.index_image = self._top_n(n=self.size)
+        self.log_top_n(self.index_image)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)
@@ -240,6 +241,7 @@ class GUI(Classification):
         self.master.title("top n for {}".format(self.type_task))
 
         self.index_image = self._multiple_top_n(self.set_task, n=self.size)
+        self.log_top_n(self.index_image)
 
         self.frame_for_image = tk.Frame(self.master)
         self.frame_for_image.grid(row=0, column=0)
